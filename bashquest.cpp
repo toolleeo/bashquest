@@ -329,8 +329,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (cmd == "start") {
-        setup_challenge_4(state);
-        //setup_challenge_1(state);
+        setup_challenge_1(state);
         return 0;
     }
 
@@ -344,12 +343,13 @@ int main(int argc, char* argv[]) {
         bool ok = false;
 
         if (state.challenge == 1)
-            //ok = check_challenge_1(state, flag);
-            ok = check_challenge_4(state, flag);
+            ok = check_challenge_1(state, flag);
         else if (state.challenge == 2)
             ok = check_challenge_2(state, flag);
         else if (state.challenge == 3)
             ok = check_challenge_3(state, flag);
+        else if (state.challenge == 4)
+            ok = check_challenge_4(state, flag);
         else {
             std::cout << "All challenges completed.\n";
             return 0;
@@ -368,6 +368,8 @@ int main(int argc, char* argv[]) {
             setup_challenge_2(state);
         else if (state.challenge == 3)
             setup_challenge_3(state);
+        else if (state.challenge == 4)
+            setup_challenge_4(state);
         else
             std::cout << "You completed all challenges.\n";
 
