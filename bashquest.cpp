@@ -291,6 +291,7 @@ void setup_challenge_4(State& state) {
     std::cout << "You cannot list directories.\n";
     std::cout << "Read INSTRUCTIONS.txt and use 'cd'.\n";
     std::cout << "The flag is the deepest directory name.\n";
+    std::cout << "Use pwd anytime to show the current path.\n";
 }
 
 bool check_challenge_4(const State& state, const std::string& flag) {
