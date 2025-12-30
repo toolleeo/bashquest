@@ -230,6 +230,35 @@ def setup_tab_completion_puzzle(state: State):
 def check_tab_completion_puzzle(state: State, flag: str) -> bool:
     return hash_flag(flag) == state.flag_hash
 
+# ===================== CHALLENGE: echo redirect =====================
+
+ECHO_FILENAME = "flag.txt"
+ECHO_FLAGS = ["apple", "banana", "orange", "grape", "lemon"]
+
+def setup_echo_redirect_single_word(state: State):
+    ws = Path(state.workspace) if state.workspace else Path(WORKSPACE_DIR).resolve()
+    reset_workspace(ws)
+
+    flag = random.choice(ECHO_FLAGS)
+
+    # Store expected flag hash
+    state.flag_hash = hash_flag(flag)
+    save_state(state)
+
+def check_echo_redirect_single_word(state: State, flag: str) -> bool:
+    ws = Path(state.workspace)
+    target = ws / ECHO_FILENAME
+
+    if not target.exists() or not target.is_file():
+        return False
+
+    try:
+        content = target.read_text().strip()
+    except Exception:
+        return False
+
+    return hash_flag(content) == state.flag_hash
+
 
 def check_cd_maze(state: State, flag: str) -> bool:
     return hash_flag(flag) == state.flag_hash
@@ -293,6 +322,17 @@ CHALLENGES = [
         ],
         "setup": setup_cat_file,
         "evaluate": check_cat_file,
+    },
+    {
+        "id": "echo_redirect",
+        "title": "Create a file using echo",
+        "request": [
+            "Use the echo command with output redirection.",
+            f"Create a file named '{ECHO_FILENAME}' containing the correct flag.",
+            "The flag is a single word."
+        ],
+        "setup": setup_echo_redirect_single_word,
+        "evaluate": check_echo_redirect_single_word,
     },
     {
         "id": "deepest",
