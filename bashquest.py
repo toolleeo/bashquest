@@ -315,7 +315,7 @@ CHALLENGES = [
     {
         "id": "cat_file",
         "title": "Display file content",
-        "request": [
+        "description": [
             "A file has been created in the workspace.",
             "Display its contents using the appropriate command.",
             "The flag is a single word written inside the file."
@@ -326,7 +326,7 @@ CHALLENGES = [
     {
         "id": "echo_redirect",
         "title": "Create a file using echo",
-        "request": [
+        "description": [
             "Use the echo command with output redirection.",
             f"Create a file named '{ECHO_FILENAME}' containing the correct flag.",
             "The flag is a single word."
@@ -337,7 +337,7 @@ CHALLENGES = [
     {
         "id": "deepest",
         "title": "Find the deepest directory",
-        "request": [
+        "description": [
             "Three directories were created, one inside another, inside workspace.",
             "Find the deepest one. The flag is its name."
         ],
@@ -347,7 +347,7 @@ CHALLENGES = [
     {
         "id": "tab_completion",
         "title": "Advanced tab completion with ambiguity",
-        "request": [
+        "description": [
             "Four directories were created, one inside another.",
             "The first three levels use extremely ambiguous directory names.",
             "At the first two levels, there are TWO directories:",
@@ -361,7 +361,7 @@ CHALLENGES = [
     {
         "id": "cd_maze",
         "title": "Navigate a directory maze using cd",
-        "request": [
+        "description": [
             "Navigate the directory maze using 'cd'.\n"
             "There are multiple paths, but only one leads to the deepest directory.\n"
             "The name of that directory is the flag."
@@ -372,7 +372,7 @@ CHALLENGES = [
     {
         "id": "cd_permissions",
         "title": "Change directory with restricted permissions",
-        "request": [
+        "description": [
             "You cannot list directories.",
             f"Read {INSTRUCTIONS} and use 'cd'.",
             "The flag is the deepest directory name.",
@@ -406,13 +406,13 @@ def main():
             print("All challenges completed.")
         else:
             print(f"Challenge {state.challenge_index + 1}:")
-            print("\n".join(CHALLENGES[state.challenge_index]["request"]))
+            print("\n".join(CHALLENGES[state.challenge_index]["description"]))
     elif args.command == "start":
         state.challenge_index = 0
         CHALLENGES[0]["setup"](state)
         save_state(state)
         print(f"Challenge {state.challenge_index + 1}:")
-        print("\n".join(CHALLENGES[0]["request"]))
+        print("\n".join(CHALLENGES[0]["description"]))
     elif args.command == "submit":
         if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
@@ -431,7 +431,7 @@ def main():
             CHALLENGES[state.challenge_index]["setup"](state)
             save_state(state)
             print(f"Challenge {state.challenge_index + 1}:")
-            print("\n".join(CHALLENGES[state.challenge_index]["request"]))
+            print("\n".join(CHALLENGES[state.challenge_index]["description"]))
         else:
             print("You completed all challenges!")
     elif args.command == "goto":
@@ -446,7 +446,7 @@ def main():
 
         print(f"Jumped to challenge {idx + 1}\n")
         print(f"Challenge {state.challenge_index + 1}:")
-        print("\n".join(CHALLENGES[idx]["request"]))
+        print("\n".join(CHALLENGES[idx]["description"]))
 
 
 if __name__ == "__main__":
