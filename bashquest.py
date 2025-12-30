@@ -140,7 +140,7 @@ def setup_cat_file(state: State):
 
     file_path = ws / "message.txt"
     file_path.write_text(
-        "The flag is the word below:\n\n"
+        "The flag is the word below:\n"
         f"{flag}\n"
     )
 
