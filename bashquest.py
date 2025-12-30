@@ -404,7 +404,8 @@ def main():
         CHALLENGES[idx]["setup"](state)
         save_state(state)
 
-        print(f"Jumped to challenge {idx + 1}: {CHALLENGES[idx]['title']}")
+        print(f"Jumped to challenge {idx + 1}\n")
+        print(f"Challenge {state.challenge_index + 1}:")
         print("\n".join(CHALLENGES[idx]["request"]))
 
 
