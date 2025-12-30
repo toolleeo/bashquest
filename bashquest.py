@@ -46,10 +46,16 @@ def init_argparser():
     sub.add_parser("start", help="start or restart the quest")
     sub.add_parser("list", help="list all challenges")
     sub.add_parser("current", help="show current challenge")
-
+    goto = sub.add_parser("goto", help="jump to a specific challenge (resets workspace)")
+    goto.add_argument(
+        "target",
+        help="challenge number (1-based) or challenge id"
+    )
     submit = sub.add_parser("submit", help="submit a flag")
-    submit.add_argument("flag")
-
+    submit.add_argument(
+        "flag",
+        help="string to submit"
+    )
     sub.add_parser("done", help="cancel the quest and cleanup")
 
     return parser
@@ -104,6 +110,21 @@ def reset_workspace(ws: Path):
 
 def hash_flag(s: str) -> bytes:
     return hashlib.sha256(s.encode()).digest()
+
+def resolve_challenge_index(target: str) -> int | None:
+    # numeric (1-based)
+    if target.isdigit():
+        idx = int(target) - 1
+        if 0 <= idx < len(CHALLENGES):
+            return idx
+        return None
+
+    # by id
+    for i, c in enumerate(CHALLENGES):
+        if c["id"] == target:
+            return i
+
+    return None
 
 # ===================== HELPERS =====================
 
@@ -166,17 +187,55 @@ def check_find_deepest_directory(state, flag):
     return hash_flag(flag) == state.flag_hash
 
 
-def setup_autocomplete_directories(state: State):
-    ws = Path(state.workspace)
+# ===================== TAB COMPLETION (AMBIGUOUS + BRANCHING) =====================
+
+def random_ambiguous_name(length=20):
+    chars = ["0", "O", "1", "l"]
+    return "".join(random.choice(chars) for _ in range(length))
+
+
+def setup_tab_completion_puzzle(state: State):
+    ws = Path(WORKSPACE_DIR).resolve()
     reset_workspace(ws)
 
-    d1, d2, d3 = long_names
-    (ws / d1 / d2 / d3).mkdir(parents=True)
+    # Ambiguous directory names
+    d1_main = random_ambiguous_name()
+    d1_fake = random_ambiguous_name()
 
-    state.flag_hash = hash_flag(d3)
+    d2_main = random_ambiguous_name()
+    d2_fake = random_ambiguous_name()
 
-def check_autocomplete_directories(state, flag):
+    d3 = random_ambiguous_name()
+    d4 = random.choice(short_names)  # deepest directory (flag)
+
+    # Level 1
+    p1_main = ws / d1_main
+    p1_fake = ws / d1_fake
+    p1_main.mkdir()
+    p1_fake.mkdir()
+
+    # Level 2 (only under main path)
+    p2_main = p1_main / d2_main
+    p2_fake = p1_main / d2_fake
+    p2_main.mkdir()
+    p2_fake.mkdir()
+
+    # Level 3
+    p3 = p2_main / d3
+    p3.mkdir()
+
+    # Level 4 (flag)
+    p4 = p3 / d4
+    p4.mkdir()
+
+    state.flag_hash = hash_flag(d4)
+    state.workspace = str(ws)
+    save_state(state)
+
+
+def check_tab_completion_puzzle(state: State, flag: str) -> bool:
     return hash_flag(flag) == state.flag_hash
+
 
 def check_cd_maze(state: State, flag: str) -> bool:
     return hash_flag(flag) == state.flag_hash
@@ -252,16 +311,18 @@ CHALLENGES = [
         "evaluate": check_find_deepest_directory,
     },
     {
-        "id": "autocomplete",
-        "title": "Find deepest directory using tab completion",
+        "id": "tab_completion",
+        "title": "Advanced tab completion with ambiguity",
         "request": [
-            "Three directories were created, one inside another, inside workspace.",
-            "Find the deepest one. The flag is its name.",
-            "Directory names are painful to type.",
-            "Use tab completion."
+            "Four directories were created, one inside another.",
+            "The first three levels use extremely ambiguous directory names.",
+            "At the first two levels, there are TWO directories:",
+            "only one continues the path, the other is empty.",
+            "You must type at least one character before using TAB.",
+            "The flag is the name of the deepest directory."
         ],
-        "setup": setup_autocomplete_directories,
-        "evaluate": check_autocomplete_directories,
+        "setup": setup_tab_completion_puzzle,
+        "evaluate": check_tab_completion_puzzle,
     },
     {
         "id": "cd_maze",
@@ -347,6 +408,18 @@ def main():
             print("\n".join(CHALLENGES[state.challenge_index]["request"]))
         else:
             print("You completed all challenges!")
+    elif args.command == "goto":
+        idx = resolve_challenge_index(args.target)
+        if idx is None:
+            print("Invalid challenge.")
+            return
+
+        state.challenge_index = idx
+        CHALLENGES[idx]["setup"](state)
+        save_state(state)
+
+        print(f"Jumped to challenge {idx + 1}: {CHALLENGES[idx]['title']}")
+        print("\n".join(CHALLENGES[idx]["request"]))
 
 
 if __name__ == "__main__":
