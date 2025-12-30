@@ -130,12 +130,6 @@ def resolve_challenge_index(target: str) -> int | None:
 
 short_names = ["bin","lib","src","tmp","var","log","opt","dev","etc","run"]
 
-long_names = [
-    "extraordinarily_long_directory_name",
-    "another_unnecessarily_verbose_directory",
-    "final_directory_that_you_should_autocomplete",
-]
-
 def random_dirname(n=6):
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return "".join(random.choice(chars) for _ in range(n))
