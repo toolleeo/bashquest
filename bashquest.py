@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import os
-import sys
+import argparse
 import stat
 import shutil
 import random
@@ -14,54 +13,67 @@ from pathlib import Path
 
 SECRET_KEY = b"bashquest_internal_secret"
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
+WORKSPACE_DIR = "workspace"
+INSTRUCTIONS = "INSTRUCTIONS.txt"
+
+# ===================== ARGPARSE =====================
+
+def init_argparser():
+    parser = argparse.ArgumentParser(description="Shell quest (CTF-style)")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("start", help="start or restart the quest")
+    sub.add_parser("list", help="list all challenges")
+    sub.add_parser("current", help="show current challenge")
+
+    submit = sub.add_parser("submit", help="submit a flag")
+    submit.add_argument("flag")
+
+    sub.add_parser("done", help="cancel the quest and cleanup")
+
+    return parser
 
 # ===================== STATE =====================
 
 class State:
     def __init__(self):
-        self.challenge = 1
+        self.challenge_index = 0
         self.flag_hash = b""
         self.workspace = ""
 
 def simple_hash(state: State) -> bytes:
     h = hashlib.sha256()
     h.update(SECRET_KEY)
-    h.update(state.challenge.to_bytes(4, "little"))
+    h.update(state.challenge_index.to_bytes(4, "little"))
     h.update(state.flag_hash)
     h.update(state.workspace.encode())
     return h.digest()
 
-def state_dir() -> Path:
-    return CONFIG_DIR
-
-def load_state() -> State | None:
+def load_state():
     try:
-        with open(state_dir() / "state.bin", "rb") as f:
+        with open(CONFIG_DIR / "state.bin", "rb") as f:
             state, checksum = pickle.load(f)
-        if checksum != simple_hash(state):
-            return None
-        return state
+        return state if checksum == simple_hash(state) else None
     except Exception:
         return None
 
 def save_state(state: State):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    checksum = simple_hash(state)
     with open(CONFIG_DIR / "state.bin", "wb") as f:
-        pickle.dump((state, checksum), f)
+        pickle.dump((state, simple_hash(state)), f)
 
 # ===================== UTIL =====================
 
-def make_writable_recursive(path: Path):
-    if not path.exists():
+def make_writable_recursive(p: Path):
+    if not p.exists():
         return
     try:
-        path.chmod(0o777)
+        p.chmod(0o777)
     except Exception:
         pass
-    if path.is_dir():
-        for p in path.iterdir():
-            make_writable_recursive(p)
+    if p.is_dir():
+        for c in p.iterdir():
+            make_writable_recursive(c)
 
 def reset_workspace(ws: Path):
     if ws.exists():
@@ -69,135 +81,112 @@ def reset_workspace(ws: Path):
         shutil.rmtree(ws)
     ws.mkdir(parents=True, exist_ok=True)
 
-def mkdir(p: Path):
-    p.mkdir()
+def hash_flag(s: str) -> bytes:
+    return hashlib.sha256(s.encode()).digest()
 
-# ===================== RANDOM HELPERS =====================
+# ===================== HELPERS =====================
 
-short_names = [
-    "bin","lib","src","tmp","var",
-    "log","opt","dev","etc","run"
-]
+short_names = ["bin","lib","src","tmp","var","log","opt","dev","etc","run"]
 
 long_names = [
     "extraordinarily_long_directory_name",
     "another_unnecessarily_verbose_directory",
     "final_directory_that_you_should_autocomplete",
-    "ridiculously_specific_and_annoying_directory_name",
-    "this_directory_name_is_way_too_long"
 ]
 
-def random_from(v):
-    return random.choice(v)
+def random_dirname(n=6):
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return "".join(random.choice(chars) for _ in range(n))
 
-def hash_flag(s: str) -> bytes:
-    return hashlib.sha256(s.encode()).digest()
+# ===================== Challenge implementations =====================
 
-# ===================== CHALLENGE 1 =====================
+# ===================== Challenge: cat a file =====================
 
-def setup_challenge_1(state: State):
-    ws = Path("workspace").resolve()
+def setup_cat_file(state: State):
+    ws = Path(WORKSPACE_DIR).resolve()
     reset_workspace(ws)
 
-    d1 = random_from(short_names)
-    d2 = random_from(short_names)
-    d3 = random_from(short_names)
+    possible_flags = [
+        "hello",
+        "banana",
+        "penguin",
+        "ocean",
+        "terminal",
+        "kernel",
+    ]
 
-    mkdir(ws / d1)
-    mkdir(ws / d1 / d2)
-    mkdir(ws / d1 / d2 / d3)
+    flag = random.choice(possible_flags)
 
-    state.challenge = 1
-    state.flag_hash = hash_flag(d3)
+    file_path = ws / "message.txt"
+    file_path.write_text(
+        "The flag is the word below:\n\n"
+        f"{flag}\n"
+    )
+
+    state.flag_hash = hash_flag(flag)
     state.workspace = str(ws)
-    save_state(state)
 
-    print("Challenge 1:")
-    print("Three directories were created, one inside another.")
-    print("Find the deepest one. The flag is its name.")
 
-def check_challenge_1(state: State, flag: str) -> bool:
+def check_cat_file(state: State, flag: str) -> bool:
     return hash_flag(flag) == state.flag_hash
 
-# ===================== CHALLENGE 2 =====================
 
-def setup_challenge_2(state: State):
+def setup_find_deepest_directory(state: State):
+    ws = Path(WORKSPACE_DIR).resolve()
+    reset_workspace(ws)
+
+    d1, d2, d3 = random.sample(short_names, 3)
+    (ws / d1 / d2 / d3).mkdir(parents=True)
+
+    state.flag_hash = hash_flag(d3)
+    state.workspace = str(ws)
+
+def check_find_deepest_directory(state, flag):
+    return hash_flag(flag) == state.flag_hash
+
+
+def setup_autocomplete_directories(state: State):
     ws = Path(state.workspace)
     reset_workspace(ws)
 
-    d1, d2, d3 = long_names[:3]
+    d1, d2, d3 = long_names
+    (ws / d1 / d2 / d3).mkdir(parents=True)
 
-    mkdir(ws / d1)
-    mkdir(ws / d1 / d2)
-    mkdir(ws / d1 / d2 / d3)
-
-    state.challenge = 2
     state.flag_hash = hash_flag(d3)
-    save_state(state)
 
-    print("Challenge 2:")
-    print("Same task, but directory names are painful to type.")
-    print("Use tab completion.")
-
-def check_challenge_2(state: State, flag: str) -> bool:
+def check_autocomplete_directories(state, flag):
     return hash_flag(flag) == state.flag_hash
 
-# ===================== CHALLENGE 3 =====================
+def check_cd_maze(state: State, flag: str) -> bool:
+    return hash_flag(flag) == state.flag_hash
 
-def setup_challenge_3(state: State):
-    ws = Path("workspace").resolve()
+def setup_cd_maze(state: State):
+    ws = Path(WORKSPACE_DIR).resolve()
     reset_workspace(ws)
 
     start = ws / "start"
-    mkdir(start)
-
     go_left = start / "go_left"
     go_right = start / "go_right"
-    mkdir(go_left)
-    mkdir(go_right)
-
     treasure = go_left / "treasure"
     deadend = go_right / "deadend"
-    mkdir(treasure)
-    mkdir(deadend)
 
-    state.challenge = 3
+    treasure.mkdir(parents=True)
+    deadend.mkdir(parents=True)
+
     state.flag_hash = hash_flag("treasure")
     state.workspace = str(ws)
-    save_state(state)
 
-    print("Challenge 3 (CD mastery):")
-    print("Navigate the directory maze using 'cd'.")
-    print("Only step-by-step navigation works.")
-
-def check_challenge_3(state: State, flag: str) -> bool:
-    return hash_flag(flag) == state.flag_hash
-
-# ===================== CHALLENGE 4 =====================
-
-def random_dirname(length=6):
-    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return "".join(random.choice(chars) for _ in range(length))
-
-def setup_challenge_4(state: State):
-    ws = Path("workspace").resolve()
+def setup_cd_permissions_puzzle(state: State):
+    ws = Path(WORKSPACE_DIR).resolve()
     reset_workspace(ws)
 
-    d1 = random_dirname()
-    d2 = random_dirname()
-    d3 = random_dirname()
+    d1, d2, d3 = random_dirname(), random_dirname(), random_dirname()
+    p1, p2, p3 = ws / d1, ws / d1 / d2, ws / d1 / d2 / d3
+    p3.mkdir(parents=True)
 
-    p1 = ws / d1
-    p2 = p1 / d2
-    p3 = p2 / d3
-
-    mkdir(p1)
-    mkdir(p2)
-    mkdir(p3)
-
-    (p1 / "INSTRUCTIONS.txt").write_text(f"To continue, cd into:\n{d2}\n")
-    (p2 / "INSTRUCTIONS.txt").write_text(f"To continue, cd into:\n{d3}\n")
-    (p3 / "INSTRUCTIONS.txt").write_text(
+    (p1 / instructions).write_text(f"To continue, cd into:\n{d2}\n")
+    (p2 / instructions).write_text(f"To continue, cd into:\n{d3}\n")
+    (p3 / instructions).write_text(
         "You reached the deepest directory.\n"
         "The directory name is the flag.\n"
         "Use pwd to show the full path.\n"
@@ -208,93 +197,136 @@ def setup_challenge_4(state: State):
 
     for p in (p1, p2, p3):
         p.chmod(x)
-
-    for f in (p1/"INSTRUCTIONS.txt", p2/"INSTRUCTIONS.txt", p3/"INSTRUCTIONS.txt"):
+    for f in (p1/INSTRUCTIONS, p2/INSTRUCTIONS, p3/INSTRUCTIONS):
         f.chmod(r)
 
-    state.challenge = 4
     state.flag_hash = hash_flag(d3)
     state.workspace = str(ws)
-    save_state(state)
 
-    print("Challenge 4 (permissions + cd):")
-    print("You cannot list directories.")
-    print("Read INSTRUCTIONS.txt and use 'cd'.")
-    print("The flag is the deepest directory name.")
-    print("Use pwd anytime.")
-
-def check_challenge_4(state: State, flag: str) -> bool:
+def check_cd_permissions_puzzle(state, flag):
     return hash_flag(flag) == state.flag_hash
+
+# ===================== CHALLENGE REGISTRY =====================
+
+CHALLENGES = [
+    {
+        "id": "cat_file",
+        "title": "Display file content",
+        "request": [
+            "A file has been created in the workspace.",
+            "Display its contents using the appropriate command.",
+            "The flag is a single word written inside the file."
+        ],
+        "setup": setup_cat_file,
+        "evaluate": check_cat_file,
+    },
+    {
+        "id": "deepest",
+        "title": "Find the deepest directory",
+        "request": [
+            "Three directories were created, one inside another, inside workspace.",
+            "Find the deepest one. The flag is its name."
+        ],
+        "setup": setup_find_deepest_directory,
+        "evaluate": check_find_deepest_directory,
+    },
+    {
+        "id": "autocomplete",
+        "title": "Find deepest directory using tab completion",
+        "request": [
+            "Three directories were created, one inside another, inside workspace.",
+            "Find the deepest one. The flag is its name.",
+            "Directory names are painful to type.",
+            "Use tab completion."
+        ],
+        "setup": setup_autocomplete_directories,
+        "evaluate": check_autocomplete_directories,
+    },
+    {
+        "id": "cd_maze",
+        "title": "Navigate a directory maze using cd",
+        "request": [
+            "Navigate the directory maze using 'cd'.\n"
+            "There are multiple paths, but only one leads to the deepest directory.\n"
+            "The name of that directory is the flag."
+        ],
+        "setup": setup_cd_maze,
+        "evaluate": check_cd_maze,
+    },
+    {
+        "id": "cd_permissions",
+        "title": "Change directory with restricted permissions",
+        "request": [
+            "You cannot list directories.",
+            f"Read {INSTRUCTIONS} and use 'cd'.",
+            "The flag is the deepest directory name.",
+            "Use pwd anytime."
+        ],
+        "setup": setup_cd_permissions_puzzle,
+        "evaluate": check_cd_permissions_puzzle,
+    },
+]
 
 # ===================== MAIN =====================
 
 def main():
     random.seed(time.time())
+    args = init_argparser().parse_args()
 
-    if len(sys.argv) < 2:
-        print("Usage: bashquest start | submit FLAG | reset")
+    state = load_state() or State()
+
+    if args.command == "done":
+        make_writable_recursive(Path(WORKSPACE_DIR))
+        make_writable_recursive(CONFIG_DIR)
+        shutil.rmtree(WORKSPACE_DIR, ignore_errors=True)
+        shutil.rmtree(CONFIG_DIR, ignore_errors=True)
+        print("Quest cancelled.")
         return
 
-    cmd = sys.argv[1]
-    state = load_state()
+    if args.command == "list":
+        for i, c in enumerate(CHALLENGES):
+            marker = ">" if i == state.challenge_index else " "
+            print(f"{marker} {i+1}. {c['title']}")
+        return
 
-    if not state:
-        state = State()
+    if args.command == "current":
+        if state.challenge_index >= len(CHALLENGES):
+            print("All challenges completed.")
+        else:
+            print(f"Challenge {state.challenge_index + 1}:")
+            print("\n".join(CHALLENGES[state.challenge_index]["request"]))
+        return
+
+    if args.command == "start":
+        state.challenge_index = 0
+        CHALLENGES[0]["setup"](state)
         save_state(state)
-
-    if cmd == "reset":
-        make_writable_recursive(state_dir())
-        make_writable_recursive(Path("workspace"))
-        shutil.rmtree(state_dir(), ignore_errors=True)
-        shutil.rmtree("workspace", ignore_errors=True)
-        print("Progress reset.")
+        print(f"Challenge {state.challenge_index + 1}:")
+        print("\n".join(CHALLENGES[0]["request"]))
         return
 
-    if cmd == "start":
-        setup_challenge_1(state)
-        return
-
-    if cmd == "submit":
-        if len(sys.argv) < 3:
-            print("Missing flag.")
-            return
-
-        flag = sys.argv[2]
-
-        checks = {
-            1: check_challenge_1,
-            2: check_challenge_2,
-            3: check_challenge_3,
-            4: check_challenge_4,
-        }
-
-        if state.challenge not in checks:
+    if args.command == "submit":
+        if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
             return
 
-        if not checks[state.challenge](state, flag):
+        challenge = CHALLENGES[state.challenge_index]
+        if not challenge["evaluate"](state, args.flag):
             print("Wrong flag.")
             return
 
         print("Correct!")
-        state.challenge += 1
+        state.challenge_index += 1
         save_state(state)
 
-        setups = {
-            2: setup_challenge_2,
-            3: setup_challenge_3,
-            4: setup_challenge_4,
-        }
-
-        if state.challenge in setups:
-            setups[state.challenge](state)
+        if state.challenge_index < len(CHALLENGES):
+            CHALLENGES[state.challenge_index]["setup"](state)
+            save_state(state)
+            print(f"Challenge {state.challenge_index + 1}:")
+            print("\n".join(CHALLENGES[state.challenge_index]["request"]))
         else:
-            print("You completed all challenges.")
+            print("You completed all challenges!")
 
-        return
-
-    print("Unknown command.")
 
 if __name__ == "__main__":
     main()
-
