@@ -11,10 +11,31 @@ from pathlib import Path
 
 # ===================== CONFIG =====================
 
-SECRET_KEY = b"bashquest_internal_secret"
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
 WORKSPACE_DIR = "workspace"
 INSTRUCTIONS = "INSTRUCTIONS.txt"
+
+def load_secret_key() -> bytes:
+    env_file = CONFIG_DIR / "env"
+    if not env_file.exists():
+        print("Fatal error: secret env file not found.")
+        sys.exit(1)
+
+    with env_file.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                if key == "SECRET_KEY":
+                    return value.encode()
+
+    print("Fatal error: SECRET_KEY not found in env file.")
+    sys.exit(1)
+
+
+SECRET_KEY = load_secret_key()
 
 # ===================== ARGPARSE =====================
 
