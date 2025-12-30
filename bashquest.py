@@ -357,31 +357,23 @@ def main():
         shutil.rmtree(WORKSPACE_DIR, ignore_errors=True)
         shutil.rmtree(CONFIG_DIR, ignore_errors=True)
         print("Quest cancelled.")
-        return
-
-    if args.command == "list":
+    elif args.command == "list":
         for i, c in enumerate(CHALLENGES):
             marker = ">" if i == state.challenge_index else " "
             print(f"{marker} {i+1}. {c['title']}")
-        return
-
-    if args.command == "current":
+    elif args.command == "current":
         if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
         else:
             print(f"Challenge {state.challenge_index + 1}:")
             print("\n".join(CHALLENGES[state.challenge_index]["request"]))
-        return
-
-    if args.command == "start":
+    elif args.command == "start":
         state.challenge_index = 0
         CHALLENGES[0]["setup"](state)
         save_state(state)
         print(f"Challenge {state.challenge_index + 1}:")
         print("\n".join(CHALLENGES[0]["request"]))
-        return
-
-    if args.command == "submit":
+    elif args.command == "submit":
         if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
             return
