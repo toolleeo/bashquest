@@ -2,7 +2,7 @@ from challenges.base import BaseChallenge
 import random
 from pathlib import Path
 from state import State
-from utils import hash_flag, WORKSPACE_DIR
+from utils import hash_flag
 
 possible_flags = [
     "hello",
@@ -24,7 +24,7 @@ class CatFileChallenge(BaseChallenge):
     requires_flag = True  # Optional, defaults to True
 
     def setup(self, state: State) -> State:
-        ws = Path(WORKSPACE_DIR).resolve()
+        ws = Path(state.workspace).resolve()
 
         flag = random.choice(possible_flags)
 

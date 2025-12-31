@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 from state import State
-from utils import hash_flag, WORKSPACE_DIR, short_names
+from utils import hash_flag, short_names
 
 # Challenge metadata
 title_deepest_directory = "Find the deepest directory"
@@ -13,7 +13,7 @@ description_deepest_directory = [
 
 # Setup function
 def setup_deepest_directory(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
+    ws = Path(state.workspace).resolve()
 
     d1, d2, d3 = random.sample(short_names, 3)
     (ws / d1 / d2 / d3).mkdir(parents=True)

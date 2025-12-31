@@ -2,7 +2,7 @@ import stat
 import random
 from pathlib import Path
 from state import State
-from utils import hash_flag, WORKSPACE_DIR
+from utils import hash_flag
 
 INSTRUCTIONS = "INSTRUCTIONS.txt"
 
@@ -26,7 +26,7 @@ def setup_cd_permissions(state: State) -> State:
     Set up the directory structure for the permissions puzzle.
     Returns the modified state; main handles workspace and saving.
     """
-    ws = Path(WORKSPACE_DIR).resolve()
+    ws = Path(state.workspace).resolve()
 
     d1, d2, d3 = random_dirname(), random_dirname(), random_dirname()
     p1, p2, p3 = ws / d1, ws / d1 / d2, ws / d1 / d2 / d3

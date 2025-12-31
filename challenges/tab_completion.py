@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 from state import State
-from utils import hash_flag, WORKSPACE_DIR, short_names
+from utils import hash_flag, short_names
 #from utils import save_state
 
 # Challenge metadata
@@ -22,7 +22,7 @@ def random_ambiguous_name(length=20):
 
 # Setup function
 def setup_tab_completion(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
+    ws = Path(state.workspace).resolve()
 
     # Level 1
     d1_main = random_ambiguous_name()

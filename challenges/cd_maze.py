@@ -1,6 +1,6 @@
 from pathlib import Path
 from state import State
-from utils import hash_flag, WORKSPACE_DIR
+from utils import hash_flag
 
 # Challenge metadata
 title_cd_maze = "Navigate a directory maze using cd"
@@ -12,7 +12,7 @@ description_cd_maze = [
 
 # Setup function
 def setup_cd_maze(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
+    ws = Path(state.workspace).resolve()
 
     start = ws / "start"
     go_left = start / "go_left"

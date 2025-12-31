@@ -17,7 +17,10 @@ from utils import reset_workspace, make_writable_recursive
 # ===================== CONFIG =====================
 
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
-WORKSPACE_DIR = "workspace"
+ACTIVE_WORKSPACE_FILE = CONFIG_DIR / "active_workspace"
+
+DEFAULT_WORKSPACE_NAME = "workspace"
+
 
 def load_secret_key() -> bytes:
     env_file = CONFIG_DIR / "env"
@@ -43,28 +46,42 @@ SECRET_KEY = load_secret_key()
 
 # ===================== ARGPARSE =====================
 
+
 def init_argparser():
     parser = argparse.ArgumentParser(description="Shell quest (CTF-style)")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("start", help="start or restart the quest")
+    start = sub.add_parser("start", help="start a new workspace")
+    start.add_argument(
+        "path",
+        nargs="?",
+        default=DEFAULT_WORKSPACE_NAME,
+        help="path to workspace (relative or absolute)",
+    )
+
     sub.add_parser("list", help="list all challenges")
     sub.add_parser("current", help="show current challenge")
+
     goto = sub.add_parser("goto", help="jump to a specific challenge (resets workspace)")
-    goto.add_argument(
-        "target",
-        help="challenge number (1-based) or challenge id"
-    )
+    goto.add_argument("target", help="challenge number (1-based) or challenge id")
+
     submit = sub.add_parser("submit", help="submit a flag")
     submit.add_argument(
         "flag",
         nargs="?",
         default=None,
-        help="string to submit (optional for put-the-flag challenges)"
+        help="string to submit (optional for put-the-flag challenges)",
     )
+
+    use = sub.add_parser("use", help="switch to another workspace")
+    use.add_argument("path", help="path to workspace to use (absolute or relative)")
+
+    sub.add_parser("workspace", help="show absolute path of current workspace")
+
     sub.add_parser("done", help="cancel the quest and cleanup")
 
     return parser
+
 
 # ===================== STATE =====================
 
@@ -72,7 +89,8 @@ class State:
     def __init__(self):
         self.challenge_index = 0
         self.flag_hash = b""
-        self.workspace = ""
+        self.workspace = ""  # absolute path to current workspace
+
 
 def simple_hash(state: State) -> bytes:
     h = hashlib.sha256()
@@ -82,47 +100,82 @@ def simple_hash(state: State) -> bytes:
     h.update(state.workspace.encode())
     return h.digest()
 
-def load_state():
+
+def workspace_state_file(ws: Path) -> Path:
+    return ws / ".bashquest" / "state.bin"
+
+
+def load_state(ws: Path) -> State | None:
+    f = workspace_state_file(ws)
     try:
-        with open(CONFIG_DIR / "state.bin", "rb") as f:
-            state, checksum = pickle.load(f)
-        return state if checksum == simple_hash(state) else None
+        with f.open("rb") as fh:
+            state, checksum = pickle.load(fh)
+        if checksum == simple_hash(state):
+            return state
+        return None
     except Exception:
         return None
 
+
 def save_state(state: State):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(CONFIG_DIR / "state.bin", "wb") as f:
+    ws = Path(state.workspace)
+    ws_bash = ws / ".bashquest"
+    ws_bash.mkdir(parents=True, exist_ok=True)
+    with workspace_state_file(ws).open("wb") as f:
         pickle.dump((state, simple_hash(state)), f)
+
+
+def set_active_workspace(ws: Path):
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    with ACTIVE_WORKSPACE_FILE.open("w") as f:
+        f.write(str(ws.resolve()))
+
+
+def get_active_workspace() -> Path | None:
+    if not ACTIVE_WORKSPACE_FILE.exists():
+        return None
+    ws = Path(ACTIVE_WORKSPACE_FILE.read_text().strip())
+    if ws.exists() and ws.is_dir():
+        return ws
+    return None
+
+
+def detect_workspace_from_cwd() -> Path | None:
+    p = Path.cwd()
+    while p != p.parent:
+        if (p / ".bashquest").exists():
+            return p
+        p = p.parent
+    return None
+
 
 # ===================== UTIL =====================
 
-def render_description(description: list[str], state: State) -> list[str]:
-    context = vars(state)   # ← magic line
 
+def render_description(description: list[str], state: State) -> list[str]:
+    context = vars(state)
     rendered = []
     for line in description:
         try:
             rendered.append(line.format(**context))
         except KeyError:
             rendered.append(line)
-
     return rendered
 
+
 def resolve_challenge_index(target: str, challenges) -> int | None:
-    # numeric (1-based)
     if target.isdigit():
         idx = int(target) - 1
         if 0 <= idx < len(challenges):
             return idx
         return None
-
-    # by id
     for i, c in enumerate(challenges):
-        if c.id == target:
+        if getattr(c, "id", None) == target:
             return i
     return None
 
+
+# ===================== CHALLENGE LOADING =====================
 
 class SymbolChallenge:
     def __init__(self, cid, title, description, setup, evaluate):
@@ -139,22 +192,12 @@ def build_from_symbols(mod, cid):
     setup = getattr(mod, f"setup_{cid}")
     evaluate = getattr(mod, f"check_{cid}")
 
-    challenge = SymbolChallenge(cid, title, description, setup, evaluate)
-
-    # Set requires_flag from module variable if present
-    challenge.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
-
-    return challenge
+    ch = SymbolChallenge(cid, title, description, setup, evaluate)
+    ch.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
+    return ch
 
 
 def load_challenges():
-    """
-    Load all challenges listed in challenges.toml.
-
-    For each module:
-      - If a concrete class inheriting from BaseChallenge exists, instantiate it.
-      - Otherwise, fallback to symbol-based construction.
-    """
     config_file = CONFIG_DIR / "challenges.toml"
     data = tomllib.loads(config_file.read_text())
     challenge_ids = data["challenges"]
@@ -162,14 +205,8 @@ def load_challenges():
     challenges = []
 
     for cid in challenge_ids:
-        try:
-            mod = importlib.import_module(f"challenges.{cid}")
-        except ModuleNotFoundError:
-            print(f"Error processing {config_file}")
-            print(f"Challenge module not found: {cid}")
-            sys.exit(1)
+        mod = importlib.import_module(f"challenges.{cid}")
 
-        # Attempt to find a concrete BaseChallenge subclass
         cls = next(
             (c for c in mod.__dict__.values()
              if isinstance(c, type)
@@ -179,38 +216,15 @@ def load_challenges():
         )
 
         if cls:
-            # Instantiate the concrete class
             challenges.append(cls())
         else:
-            # Fallback to symbol-based loading
-            try:
-                title = getattr(mod, f"title_{cid}")
-                description = getattr(mod, f"description_{cid}")
-                setup = getattr(mod, f"setup_{cid}")
-                evaluate = getattr(mod, f"check_{cid}")
-            except AttributeError as e:
-                raise RuntimeError(
-                    f"Challenge '{cid}' is missing a required symbol: {e}"
-                )
-
-            if not isinstance(description, list):
-                raise RuntimeError(
-                    f"description_{cid} must be a list of strings"
-                )
-
-            ch = SymbolChallenge(
-                cid=cid,
-                title=title,
-                description=description,
-                setup=setup,
-                evaluate=evaluate,
-            )
-            ch.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
-            challenges.append(ch)
+            challenges.append(build_from_symbols(mod, cid))
 
     return challenges
 
+
 # ===================== MAIN =====================
+
 
 def main():
     random.seed(time.time())
@@ -220,22 +234,56 @@ def main():
 
     CHALLENGES = load_challenges()
 
-    state = load_state()
+    # Determine workspace
+    workspace: Path | None = None
+    if args.command == "start":
+        path = Path(args.path)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        path.mkdir(parents=True, exist_ok=True)
+        workspace = path.resolve()
+        (workspace / ".bashquest").mkdir(exist_ok=True)
+        set_active_workspace(workspace)
+    elif args.command == "use":
+        path = Path(args.path)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        ws = detect_workspace_from_cwd() or path.resolve()
+        if not (ws / ".bashquest").exists():
+            print(f"No workspace found at {ws}")
+            return
+        set_active_workspace(ws)
+        print(f"Active workspace set to {ws}")
+        return
+    elif args.command == "workspace":
+        ws = detect_workspace_from_cwd() or get_active_workspace()
+        print(f"Current workspace: {ws}")
+        return
+    else:
+        workspace = detect_workspace_from_cwd() or get_active_workspace()
+        if workspace is None:
+            print("No active workspace. Use 'start' or 'use' to select a workspace.")
+            return
+
+    state = load_state(workspace)
     if not state:
         state = State()
+        state.workspace = str(workspace)
         save_state(state)
 
     cmd = args.command
 
     if cmd == "done":
-        make_writable_recursive(Path(WORKSPACE_DIR))
-        shutil.rmtree(WORKSPACE_DIR, ignore_errors=True)
-        print("Quest cancelled.")
+        make_writable_recursive(workspace)
+        shutil.rmtree(workspace, ignore_errors=True)
+        print(f"Workspace {workspace} removed.")
+        return
 
     elif cmd == "list":
         for i, c in enumerate(CHALLENGES):
             marker = ">" if i == state.challenge_index else " "
             print(f"{marker} {i+1}. {c.title}")
+        return
 
     elif cmd == "current":
         if state.challenge_index >= len(CHALLENGES):
@@ -244,11 +292,11 @@ def main():
             c = CHALLENGES[state.challenge_index]
             print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
             print("\n".join(render_description(c.description, state)))
-
+        return
 
     elif cmd == "start":
         state.challenge_index = 0
-        ws = Path(WORKSPACE_DIR).resolve()
+        ws = workspace.resolve()
         reset_workspace(ws)
         state.workspace = str(ws)
 
@@ -258,6 +306,7 @@ def main():
 
         print(f"Challenge 1: {ch.title}\n")
         print("\n".join(render_description(ch.description, state)))
+        return
 
     elif cmd == "goto":
         idx = resolve_challenge_index(args.target, CHALLENGES)
@@ -266,7 +315,7 @@ def main():
             return
 
         state.challenge_index = idx
-        ws = Path(WORKSPACE_DIR).resolve()
+        ws = workspace.resolve()
         reset_workspace(ws)
         state.workspace = str(ws)
 
@@ -276,19 +325,14 @@ def main():
 
         print(f"Jumped to challenge {idx + 1}: {ch.title}\n")
         print("\n".join(render_description(ch.description, state)))
+        return
 
     elif cmd == "submit":
-        if state.challenge_index >= len(CHALLENGES):
-            print("All challenges completed.")
-            return
-
         ch = CHALLENGES[state.challenge_index]
-        # Determine flag to pass
-        if getattr(ch, "requires_flag", True):
-            if args.flag is None:
-                print("This challenge requires a flag argument.")
-                return
         flag_value = args.flag
+        if getattr(ch, "requires_flag", True) and flag_value is None:
+            print("This challenge requires a flag argument.")
+            return
 
         if not ch.evaluate(state, flag_value):
             print("Wrong flag.")
@@ -300,7 +344,7 @@ def main():
 
         if state.challenge_index < len(CHALLENGES):
             next_ch = CHALLENGES[state.challenge_index]
-            ws = Path(WORKSPACE_DIR).resolve()
+            ws = workspace.resolve()
             reset_workspace(ws)
             state.workspace = str(ws)
 
