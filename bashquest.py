@@ -9,6 +9,7 @@ import pickle
 import hashlib
 from pathlib import Path
 import importlib
+import sys
 import tomllib
 from challenges.base import BaseChallenge
 from utils import reset_workspace, make_writable_recursive
@@ -133,45 +134,79 @@ class SymbolChallenge:
 
 
 def build_from_symbols(mod, cid):
-    try:
-        title = getattr(mod, f"title_{cid}")
-        description = getattr(mod, f"description_{cid}")
-        setup = getattr(mod, f"setup_{cid}")
-        evaluate = getattr(mod, f"check_{cid}")
-    except AttributeError as e:
-        raise RuntimeError(
-            f"Challenge '{cid}' is missing a required symbol: {e}"
-        )
+    title = getattr(mod, f"title_{cid}")
+    description = getattr(mod, f"description_{cid}")
+    setup = getattr(mod, f"setup_{cid}")
+    evaluate = getattr(mod, f"check_{cid}")
 
-    if not isinstance(description, list):
-        raise RuntimeError(
-            f"description_{cid} must be a list of strings"
-        )
+    challenge = SymbolChallenge(cid, title, description, setup, evaluate)
 
-    # Create challenge instance
-    ch = SymbolChallenge(
-        cid=cid,
-        title=title,
-        description=description,
-        setup=setup,
-        evaluate=evaluate,
-    )
-    ch.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
-    return ch
+    # Set requires_flag from module variable if present
+    challenge.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
+
+    return challenge
+
 
 def load_challenges():
-    data = tomllib.loads(Path(CONFIG_DIR / Path("challenges.toml")).read_text())
+    """
+    Load all challenges listed in challenges.toml.
+
+    For each module:
+      - If a concrete class inheriting from BaseChallenge exists, instantiate it.
+      - Otherwise, fallback to symbol-based construction.
+    """
+    config_file = CONFIG_DIR / "challenges.toml"
+    data = tomllib.loads(config_file.read_text())
     challenge_ids = data["challenges"]
 
     challenges = []
 
     for cid in challenge_ids:
-        mod = importlib.import_module(f"challenges.{cid}")
+        try:
+            mod = importlib.import_module(f"challenges.{cid}")
+        except ModuleNotFoundError:
+            print(f"Error processing {config_file}")
+            print(f"Challenge module not found: {cid}")
+            sys.exit(1)
 
-        if hasattr(mod, "Challenge"):
-            challenges.append(mod.Challenge())
+        # Attempt to find a concrete BaseChallenge subclass
+        cls = next(
+            (c for c in mod.__dict__.values()
+             if isinstance(c, type)
+             and issubclass(c, BaseChallenge)
+             and c is not BaseChallenge),
+            None
+        )
+
+        if cls:
+            # Instantiate the concrete class
+            challenges.append(cls())
         else:
-            challenges.append(build_from_symbols(mod, cid))
+            # Fallback to symbol-based loading
+            try:
+                title = getattr(mod, f"title_{cid}")
+                description = getattr(mod, f"description_{cid}")
+                setup = getattr(mod, f"setup_{cid}")
+                evaluate = getattr(mod, f"check_{cid}")
+            except AttributeError as e:
+                raise RuntimeError(
+                    f"Challenge '{cid}' is missing a required symbol: {e}"
+                )
+
+            if not isinstance(description, list):
+                raise RuntimeError(
+                    f"description_{cid} must be a list of strings"
+                )
+
+            ch = SymbolChallenge(
+                cid=cid,
+                title=title,
+                description=description,
+                setup=setup,
+                evaluate=evaluate,
+            )
+            ch.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
+            challenges.append(ch)
 
     return challenges
 
