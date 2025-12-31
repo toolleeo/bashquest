@@ -1,8 +1,19 @@
 challenges = [
+  "list_dir",
+  "largest_file",
+  "find_directory",
   "cat_file",
   "echo_redirect_single_word",
+  "echo_redirect_two_words",
+  "echo_redirect_append_two_lines",
   "deepest_directory",
   "tab_completion",
   "cd_maze",
-  "cd_permissions"
+  "cd_permissions",
+  "mkdir_single_directory",
+  "mkdir_nested_directories",
+  "rmdir_deepest_directory",
+  "rm_file_in_deepest_directory",
+  "rmdir_non_empty_deepest_directory",
+  "rmdir_three_nested_directories",
 ]
