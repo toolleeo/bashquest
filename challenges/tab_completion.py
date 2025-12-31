@@ -2,7 +2,6 @@ import random
 from pathlib import Path
 from state import State
 from utils import hash_flag, short_names
-#from utils import save_state
 
 # Challenge metadata
 title_tab_completion = "Advanced tab completion with ambiguity"
