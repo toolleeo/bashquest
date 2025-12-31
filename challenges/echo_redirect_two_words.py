@@ -13,7 +13,7 @@ title_echo_redirect_two_words = "Create a file using echo (two words)"
 
 description_echo_redirect_two_words = [
     "Use the echo command with output redirection.",
-    "Create a file named 'flag.txt' containing the two words: \"{echo_words}\".",
+    "Create a file named 'flag.txt' containing the text: \"{echo_words}\".",
     "The two words must be separated by exactly 3 (three) spaces.",
     "Hint: you will need quotes in the command line.",
     "The flag is the exact content of the file."
