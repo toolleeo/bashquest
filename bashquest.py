@@ -288,9 +288,7 @@ def main():
             if args.flag is None:
                 print("This challenge requires a flag argument.")
                 return
-            flag_value = args.flag
-        else:
-            flag_value = None
+        flag_value = args.flag
 
         if not ch.evaluate(state, flag_value):
             print("Wrong flag.")

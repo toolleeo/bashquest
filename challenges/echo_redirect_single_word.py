@@ -39,4 +39,8 @@ def check_echo_redirect_single_word(state: State, flag: str | None) -> bool:
     except Exception:
         return False
 
-    return content == state.echo_word
+    # This is required to handle both absence and presence of flag in submit
+    if flag is None:
+        return content == state.echo_word
+    else:
+        return content == state.echo_word and flag == content
