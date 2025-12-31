@@ -8,12 +8,15 @@ import time
 import pickle
 import hashlib
 from pathlib import Path
+import importlib
+import tomllib
+from challenges.base import BaseChallenge
+from utils import reset_workspace, make_writable_recursive
 
 # ===================== CONFIG =====================
 
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
 WORKSPACE_DIR = "workspace"
-INSTRUCTIONS = "INSTRUCTIONS.txt"
 
 def load_secret_key() -> bytes:
     env_file = CONFIG_DIR / "env"
@@ -91,362 +94,176 @@ def save_state(state: State):
 
 # ===================== UTIL =====================
 
-def make_writable_recursive(p: Path):
-    if not p.exists():
-        return
-    try:
-        p.chmod(0o777)
-    except Exception:
-        pass
-    if p.is_dir():
-        for c in p.iterdir():
-            make_writable_recursive(c)
+def render_description(description: list[str], state: State) -> list[str]:
+    context = vars(state)   # ← magic line
 
-def reset_workspace(ws: Path):
-    if ws.exists():
-        make_writable_recursive(ws)
-        shutil.rmtree(ws)
-    ws.mkdir(parents=True, exist_ok=True)
+    rendered = []
+    for line in description:
+        try:
+            rendered.append(line.format(**context))
+        except KeyError:
+            rendered.append(line)
 
-def hash_flag(s: str) -> bytes:
-    return hashlib.sha256(s.encode()).digest()
+    return rendered
 
-def resolve_challenge_index(target: str) -> int | None:
+def resolve_challenge_index(target: str, challenges) -> int | None:
     # numeric (1-based)
     if target.isdigit():
         idx = int(target) - 1
-        if 0 <= idx < len(CHALLENGES):
+        if 0 <= idx < len(challenges):
             return idx
         return None
 
     # by id
-    for i, c in enumerate(CHALLENGES):
-        if c["id"] == target:
+    for i, c in enumerate(challenges):
+        if c.id == target:
             return i
-
     return None
 
-# ===================== HELPERS =====================
 
-short_names = ["bin","lib","src","tmp","var","log","opt","dev","etc","run"]
-
-def random_dirname(n=6):
-    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    return "".join(random.choice(chars) for _ in range(n))
-
-# ===================== Challenge implementations =====================
-
-# ===================== Challenge: cat a file =====================
-
-def setup_cat_file(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
-    reset_workspace(ws)
-
-    possible_flags = [
-        "hello",
-        "banana",
-        "penguin",
-        "ocean",
-        "terminal",
-        "kernel",
-    ]
-
-    flag = random.choice(possible_flags)
-
-    file_path = ws / "message.txt"
-    file_path.write_text(
-        "The flag is the word below:\n"
-        f"{flag}\n"
-    )
-
-    state.flag_hash = hash_flag(flag)
-    state.workspace = str(ws)
+class SymbolChallenge:
+    def __init__(self, cid, title, description, setup, evaluate):
+        self.id = cid
+        self.title = title
+        self.description = description
+        self.setup = setup
+        self.evaluate = evaluate
 
 
-def check_cat_file(state: State, flag: str) -> bool:
-    return hash_flag(flag) == state.flag_hash
-
-
-def setup_find_deepest_directory(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
-    reset_workspace(ws)
-
-    d1, d2, d3 = random.sample(short_names, 3)
-    (ws / d1 / d2 / d3).mkdir(parents=True)
-
-    state.flag_hash = hash_flag(d3)
-    state.workspace = str(ws)
-
-def check_find_deepest_directory(state, flag):
-    return hash_flag(flag) == state.flag_hash
-
-
-# ===================== TAB COMPLETION (AMBIGUOUS + BRANCHING) =====================
-
-def random_ambiguous_name(length=20):
-    chars = ["0", "O", "1", "l"]
-    return "".join(random.choice(chars) for _ in range(length))
-
-
-def setup_tab_completion_puzzle(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
-    reset_workspace(ws)
-
-    # Ambiguous directory names
-    d1_main = random_ambiguous_name()
-    d1_fake = random_ambiguous_name()
-
-    d2_main = random_ambiguous_name()
-    d2_fake = random_ambiguous_name()
-
-    d3 = random_ambiguous_name()
-    d4 = random.choice(short_names)  # deepest directory (flag)
-
-    # Level 1
-    p1_main = ws / d1_main
-    p1_fake = ws / d1_fake
-    p1_main.mkdir()
-    p1_fake.mkdir()
-
-    # Level 2 (only under main path)
-    p2_main = p1_main / d2_main
-    p2_fake = p1_main / d2_fake
-    p2_main.mkdir()
-    p2_fake.mkdir()
-
-    # Level 3
-    p3 = p2_main / d3
-    p3.mkdir()
-
-    # Level 4 (flag)
-    p4 = p3 / d4
-    p4.mkdir()
-
-    state.flag_hash = hash_flag(d4)
-    state.workspace = str(ws)
-    save_state(state)
-
-
-def check_tab_completion_puzzle(state: State, flag: str) -> bool:
-    return hash_flag(flag) == state.flag_hash
-
-# ===================== CHALLENGE: echo redirect =====================
-
-ECHO_FILENAME = "flag.txt"
-ECHO_FLAGS = ["apple", "banana", "orange", "grape", "lemon"]
-
-def setup_echo_redirect_single_word(state: State):
-    ws = Path(state.workspace) if state.workspace else Path(WORKSPACE_DIR).resolve()
-    reset_workspace(ws)
-
-    flag = random.choice(ECHO_FLAGS)
-
-    # Store expected flag hash
-    state.flag_hash = hash_flag(flag)
-    save_state(state)
-
-def check_echo_redirect_single_word(state: State, flag: str) -> bool:
-    ws = Path(state.workspace)
-    target = ws / ECHO_FILENAME
-
-    if not target.exists() or not target.is_file():
-        return False
-
+def build_from_symbols(mod, cid):
     try:
-        content = target.read_text().strip()
-    except Exception:
-        return False
+        title = getattr(mod, f"title_{cid}")
+        description = getattr(mod, f"description_{cid}")
+        setup = getattr(mod, f"setup_{cid}")
+        evaluate = getattr(mod, f"check_{cid}")
+    except AttributeError as e:
+        raise RuntimeError(
+            f"Challenge '{cid}' is missing a required symbol: {e}"
+        )
 
-    return hash_flag(content) == state.flag_hash
+    if not isinstance(description, list):
+        raise RuntimeError(
+            f"description_{cid} must be a list of strings"
+        )
 
-
-def check_cd_maze(state: State, flag: str) -> bool:
-    return hash_flag(flag) == state.flag_hash
-
-def setup_cd_maze(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
-    reset_workspace(ws)
-
-    start = ws / "start"
-    go_left = start / "go_left"
-    go_right = start / "go_right"
-    treasure = go_left / "treasure"
-    deadend = go_right / "deadend"
-
-    treasure.mkdir(parents=True)
-    deadend.mkdir(parents=True)
-
-    state.flag_hash = hash_flag("treasure")
-    state.workspace = str(ws)
-
-def setup_cd_permissions_puzzle(state: State):
-    ws = Path(WORKSPACE_DIR).resolve()
-    reset_workspace(ws)
-
-    d1, d2, d3 = random_dirname(), random_dirname(), random_dirname()
-    p1, p2, p3 = ws / d1, ws / d1 / d2, ws / d1 / d2 / d3
-    p3.mkdir(parents=True)
-
-    (p1 / instructions).write_text(f"To continue, cd into:\n{d2}\n")
-    (p2 / instructions).write_text(f"To continue, cd into:\n{d3}\n")
-    (p3 / instructions).write_text(
-        "You reached the deepest directory.\n"
-        "The directory name is the flag.\n"
-        "Use pwd to show the full path.\n"
+    return SymbolChallenge(
+        cid=cid,
+        title=title,
+        description=description,
+        setup=setup,
+        evaluate=evaluate,
     )
 
-    x = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-    r = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+def load_challenges():
+    data = tomllib.loads(Path(CONFIG_DIR / Path("challenges.toml")).read_text())
+    challenge_ids = data["challenges"]
 
-    for p in (p1, p2, p3):
-        p.chmod(x)
-    for f in (p1/INSTRUCTIONS, p2/INSTRUCTIONS, p3/INSTRUCTIONS):
-        f.chmod(r)
+    challenges = []
 
-    state.flag_hash = hash_flag(d3)
-    state.workspace = str(ws)
+    for cid in challenge_ids:
+        mod = importlib.import_module(f"challenges.{cid}")
 
-def check_cd_permissions_puzzle(state, flag):
-    return hash_flag(flag) == state.flag_hash
+        if hasattr(mod, "Challenge"):
+            challenges.append(mod.Challenge())
+        else:
+            challenges.append(build_from_symbols(mod, cid))
 
-# ===================== CHALLENGE REGISTRY =====================
-
-CHALLENGES = [
-    {
-        "id": "cat_file",
-        "title": "Display file content",
-        "description": [
-            "A file has been created in the workspace.",
-            "Display its contents using the appropriate command.",
-            "The flag is a single word written inside the file."
-        ],
-        "setup": setup_cat_file,
-        "evaluate": check_cat_file,
-    },
-    {
-        "id": "echo_redirect",
-        "title": "Create a file using echo",
-        "description": [
-            "Use the echo command with output redirection.",
-            f"Create a file named '{ECHO_FILENAME}' containing the correct flag.",
-            "The flag is a single word."
-        ],
-        "setup": setup_echo_redirect_single_word,
-        "evaluate": check_echo_redirect_single_word,
-    },
-    {
-        "id": "deepest",
-        "title": "Find the deepest directory",
-        "description": [
-            "Three directories were created, one inside another, inside workspace.",
-            "Find the deepest one. The flag is its name."
-        ],
-        "setup": setup_find_deepest_directory,
-        "evaluate": check_find_deepest_directory,
-    },
-    {
-        "id": "tab_completion",
-        "title": "Advanced tab completion with ambiguity",
-        "description": [
-            "Four directories were created, one inside another.",
-            "The first three levels use extremely ambiguous directory names.",
-            "At the first two levels, there are TWO directories:",
-            "only one continues the path, the other is empty.",
-            "You must type at least one character before using TAB.",
-            "The flag is the name of the deepest directory."
-        ],
-        "setup": setup_tab_completion_puzzle,
-        "evaluate": check_tab_completion_puzzle,
-    },
-    {
-        "id": "cd_maze",
-        "title": "Navigate a directory maze using cd",
-        "description": [
-            "Navigate the directory maze using 'cd'.\n"
-            "There are multiple paths, but only one leads to the deepest directory.\n"
-            "The name of that directory is the flag."
-        ],
-        "setup": setup_cd_maze,
-        "evaluate": check_cd_maze,
-    },
-    {
-        "id": "cd_permissions",
-        "title": "Change directory with restricted permissions",
-        "description": [
-            "You cannot list directories.",
-            f"Read {INSTRUCTIONS} and use 'cd'.",
-            "The flag is the deepest directory name.",
-            "Use pwd anytime."
-        ],
-        "setup": setup_cd_permissions_puzzle,
-        "evaluate": check_cd_permissions_puzzle,
-    },
-]
+    return challenges
 
 # ===================== MAIN =====================
 
 def main():
     random.seed(time.time())
-    args = init_argparser().parse_args()
 
-    state = load_state() or State()
+    parser = init_argparser()
+    args = parser.parse_args()
 
-    if args.command == "done":
+    CHALLENGES = load_challenges()
+
+    state = load_state()
+    if not state:
+        state = State()
+        save_state(state)
+
+    cmd = args.command
+
+    if cmd == "done":
         make_writable_recursive(Path(WORKSPACE_DIR))
-        make_writable_recursive(CONFIG_DIR)
         shutil.rmtree(WORKSPACE_DIR, ignore_errors=True)
-        shutil.rmtree(CONFIG_DIR, ignore_errors=True)
         print("Quest cancelled.")
-    elif args.command == "list":
+
+    elif cmd == "list":
         for i, c in enumerate(CHALLENGES):
             marker = ">" if i == state.challenge_index else " "
-            print(f"{marker} {i+1}. {c['title']}")
-    elif args.command == "current":
+            print(f"{marker} {i+1}. {c.title}")
+
+    elif cmd == "current":
         if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
         else:
-            print(f"Challenge {state.challenge_index + 1}:")
-            print("\n".join(CHALLENGES[state.challenge_index]["description"]))
-    elif args.command == "start":
+            c = CHALLENGES[state.challenge_index]
+            print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
+            print("\n".join(render_description(c.description, state)))
+
+
+    elif cmd == "start":
         state.challenge_index = 0
-        CHALLENGES[0]["setup"](state)
-        save_state(state)
-        print(f"Challenge {state.challenge_index + 1}:")
-        print("\n".join(CHALLENGES[0]["description"]))
-    elif args.command == "submit":
-        if state.challenge_index >= len(CHALLENGES):
-            print("All challenges completed.")
-            return
+        ws = Path(WORKSPACE_DIR).resolve()
+        reset_workspace(ws)
+        state.workspace = str(ws)
 
-        challenge = CHALLENGES[state.challenge_index]
-        if not challenge["evaluate"](state, args.flag):
-            print("Wrong flag.")
-            return
-
-        print("Correct!")
-        state.challenge_index += 1
+        ch = CHALLENGES[0]
+        state = ch.setup(state)
         save_state(state)
 
-        if state.challenge_index < len(CHALLENGES):
-            CHALLENGES[state.challenge_index]["setup"](state)
-            save_state(state)
-            print(f"Challenge {state.challenge_index + 1}:")
-            print("\n".join(CHALLENGES[state.challenge_index]["description"]))
-        else:
-            print("You completed all challenges!")
-    elif args.command == "goto":
-        idx = resolve_challenge_index(args.target)
+        print(f"Challenge 1: {ch.title}\n")
+        print("\n".join(render_description(ch.description, state)))
+
+    elif cmd == "goto":
+        idx = resolve_challenge_index(args.target, CHALLENGES)
         if idx is None:
             print("Invalid challenge.")
             return
 
         state.challenge_index = idx
-        CHALLENGES[idx]["setup"](state)
+        ws = Path(WORKSPACE_DIR).resolve()
+        reset_workspace(ws)
+        state.workspace = str(ws)
+
+        ch = CHALLENGES[idx]
+        state = ch.setup(state)
         save_state(state)
 
-        print(f"Jumped to challenge {idx + 1}\n")
-        print(f"Challenge {state.challenge_index + 1}:")
-        print("\n".join(CHALLENGES[idx]["description"]))
+        print(f"Jumped to challenge {idx + 1}: {ch.title}\n")
+        print("\n".join(render_description(ch.description, state)))
+
+    elif cmd == "submit":
+        if state.challenge_index >= len(CHALLENGES):
+            print("All challenges completed.")
+            return
+
+        ch = CHALLENGES[state.challenge_index]
+        if not ch.evaluate(state, args.flag):
+            print("Wrong flag.")
+            return
+
+        print("Correct!\n")
+        state.challenge_index += 1
+        save_state(state)
+
+        if state.challenge_index < len(CHALLENGES):
+            next_ch = CHALLENGES[state.challenge_index]
+            ws = Path(WORKSPACE_DIR).resolve()
+            reset_workspace(ws)
+            state.workspace = str(ws)
+
+            state = next_ch.setup(state)
+            save_state(state)
+
+            print(f"Challenge {state.challenge_index + 1}: {next_ch.title}\n")
+            print("\n".join(render_description(next_ch.description, state)))
+        else:
+            print("You completed all challenges!")
 
 
 if __name__ == "__main__":

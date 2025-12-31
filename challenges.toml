@@ -1,0 +1,8 @@
+challenges = [
+  "cat_file",
+  "echo_redirect_single_word",
+  "deepest_directory",
+  "tab_completion",
+  "cd_maze",
+  "cd_permissions"
+]
