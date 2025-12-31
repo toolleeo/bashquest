@@ -3,9 +3,9 @@ from state import State
 from utils import hash_flag
 
 # Challenge metadata
-title_cd_maze = "Navigate a directory maze using cd"
+title_cd_maze = "Navigate a directory maze"
 description_cd_maze = [
-    "Navigate the directory maze using 'cd'.",
+    "Navigate the directory maze.",
     "There are multiple paths, but only one leads to the deepest directory.",
     "The name of that directory is the flag."
 ]

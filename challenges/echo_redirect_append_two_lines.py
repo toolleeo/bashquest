@@ -9,7 +9,7 @@ ECHO_FLAGS = ["apple", "banana", "orange", "grape", "lemon"]
 
 requires_flag_echo_redirect_append_two_lines = False
 
-title_echo_redirect_append_two_lines = "Append to a file using echo"
+title_echo_redirect_append_two_lines = "Append to a file"
 
 description_echo_redirect_append_two_lines = [
     "Use two consecutive echo commands with output redirection.",
