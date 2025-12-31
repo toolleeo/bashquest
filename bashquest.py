@@ -13,6 +13,9 @@ import sys
 import tomllib
 from challenges.base import BaseChallenge
 from utils import reset_workspace, make_writable_recursive
+from state import State
+from cryptography.fernet import Fernet
+import base64
 
 # ===================== CONFIG =====================
 
@@ -85,12 +88,10 @@ def init_argparser():
 
 # ===================== STATE =====================
 
-class State:
-    def __init__(self):
-        self.challenge_index = 0
-        self.flag_hash = b""
-        self.workspace = ""  # absolute path to current workspace
-
+def get_fernet():
+    # SECRET_KEY must be 32 bytes for Fernet
+    key = SECRET_KEY.ljust(32, b'\0')[:32]
+    return Fernet(base64.urlsafe_b64encode(key))
 
 def simple_hash(state: State) -> bytes:
     h = hashlib.sha256()
@@ -105,24 +106,36 @@ def workspace_state_file(ws: Path) -> Path:
     return ws / ".bashquest" / "state.bin"
 
 
-def load_state(ws: Path) -> State | None:
-    f = workspace_state_file(ws)
-    try:
-        with f.open("rb") as fh:
-            state, checksum = pickle.load(fh)
-        if checksum == simple_hash(state):
-            return state
-        return None
-    except Exception:
-        return None
-
-
 def save_state(state: State):
     ws = Path(state.workspace)
     ws_bash = ws / ".bashquest"
     ws_bash.mkdir(parents=True, exist_ok=True)
+    fernet = get_fernet()
+    raw = pickle.dumps(state)
+    encrypted = fernet.encrypt(raw)
     with workspace_state_file(ws).open("wb") as f:
-        pickle.dump((state, simple_hash(state)), f)
+        f.write(encrypted)
+
+#def load_state(ws: Path) -> State | None:
+#    f = workspace_state_file(ws)
+#    try:
+#        with f.open("rb") as fh:
+#            state, checksum = pickle.load(fh)
+#        if checksum == simple_hash(state):
+#            return state
+#        return None
+#    except Exception:
+#        return None
+
+def load_state(ws: Path) -> State | None:
+    f = workspace_state_file(ws)
+    try:
+        fernet = get_fernet()
+        raw = f.read_bytes()
+        state = pickle.loads(fernet.decrypt(raw))
+        return state
+    except Exception:
+        return None
 
 
 def set_active_workspace(ws: Path):
@@ -256,9 +269,13 @@ def main():
         print(f"Active workspace set to {ws}")
         return
     elif args.command == "workspace":
-        ws = detect_workspace_from_cwd() or get_active_workspace()
-        print(f"Current workspace: {ws}")
-        return
+        if state.challenge_index >= len(CHALLENGES):
+            print("All challenges completed.")
+        else:
+            c = CHALLENGES[state.challenge_index]
+            status = "✓ Passed" if c.id in state.passed_challenges else "Not passed"
+            print(f"Challenge {state.challenge_index + 1}: {c.title} ({status})\n")
+            print("\n".join(render_description(c.description, state)))
     else:
         workspace = detect_workspace_from_cwd() or get_active_workspace()
         if workspace is None:
@@ -282,8 +299,8 @@ def main():
     elif cmd == "list":
         for i, c in enumerate(CHALLENGES):
             marker = ">" if i == state.challenge_index else " "
-            print(f"{marker} {i+1}. {c.title}")
-        return
+            status = "[*]" if c.id in state.passed_challenges else "[ ]"
+            print(f"{marker} {i+1}. {status} {c.title}")
 
     elif cmd == "challenge":
         if state.challenge_index >= len(CHALLENGES):
@@ -339,6 +356,7 @@ def main():
             return
 
         print("Correct!\n")
+        state.passed_challenges.add(ch.id)  # mark challenge as passed
         state.challenge_index += 1
         save_state(state)
 

@@ -6,6 +6,7 @@ class State:
         self.challenge_index = 0
         self.flag_hash = b""
         self.workspace = ""
+        self.passed_challenges: set[str] = set()  # store IDs of passed challenges
 
 def simple_hash(state, secret_key: bytes) -> bytes:
     h = hashlib.sha256()
