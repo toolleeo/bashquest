@@ -287,10 +287,14 @@ def main():
         return
 
     elif cmd == "list":
+        total = len(CHALLENGES)
+        width = len(str(total))  # number of digits of the largest index
+
         for i, c in enumerate(CHALLENGES):
             marker = ">" if i == state.challenge_index else " "
             status = "[*]" if c.id in state.passed_challenges else "[ ]"
-            print(f"{marker} {i+1}. {status} {c.title}")
+            idx = f"{i + 1:>{width}}"
+            print(f"{marker} {idx}. {status} {c.title}")
 
     elif cmd == "challenge":
         if state.challenge_index >= len(CHALLENGES):
