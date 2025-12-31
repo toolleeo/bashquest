@@ -55,7 +55,6 @@ class LargestFileChallenge(BaseChallenge):
         ws = Path(state.workspace).resolve()
         ws.mkdir(parents=True, exist_ok=True)
 
-        # Pick 10 random countries as filenames
         files = NAMES
 
         # Generate strictly increasing file sizes
