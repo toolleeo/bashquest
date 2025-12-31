@@ -47,7 +47,7 @@ class LargestFileChallenge(BaseChallenge):
     description = [
         "Several files have been created in the workspace.",
         "Each file has a different size.",
-        "The flag is the name of the largest file (without extension)."
+        "The flag is the name of the largest file."
     ]
     requires_flag = True
 
@@ -70,7 +70,7 @@ class LargestFileChallenge(BaseChallenge):
 
         # Pair filenames and sizes
         for fname, size in zip(files, sizes):
-            file_path = ws / f"{fname}.txt"
+            file_path = ws / f"{fname}"
             file_path.write_text("X" * size)
 
         # Determine the largest file
