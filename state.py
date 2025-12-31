@@ -8,11 +8,3 @@ class State:
         self.workspace = ""
         self.passed_challenges: set[str] = set()  # store IDs of passed challenges
 
-def simple_hash(state, secret_key: bytes) -> bytes:
-    h = hashlib.sha256()
-    h.update(secret_key)
-    h.update(state.challenge_index.to_bytes(4, "little"))
-    h.update(state.flag_hash)
-    h.update(state.workspace.encode())
-    return h.digest()
-

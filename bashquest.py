@@ -93,6 +93,7 @@ def get_fernet():
     key = SECRET_KEY.ljust(32, b'\0')[:32]
     return Fernet(base64.urlsafe_b64encode(key))
 
+
 def simple_hash(state: State) -> bytes:
     h = hashlib.sha256()
     h.update(SECRET_KEY)
