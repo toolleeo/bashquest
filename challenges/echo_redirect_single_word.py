@@ -8,6 +8,8 @@ ECHO_FLAGS = ["apple", "banana", "orange", "grape", "lemon"]
 
 # ---------- REQUIRED PLUGIN SYMBOLS ----------
 
+requires_flag_echo_redirect_single_word = False
+
 title_echo_redirect_single_word = "Create a file using echo"
 
 description_echo_redirect_single_word = [
@@ -25,8 +27,7 @@ def setup_echo_redirect_single_word(state: State) -> State:
 
     return state
 
-
-def check_echo_redirect_single_word(state: State, flag: str) -> bool:
+def check_echo_redirect_single_word(state: State, flag: str | None) -> bool:
     ws = Path(state.workspace)
     target = ws / ECHO_FILENAME
 
@@ -38,4 +39,4 @@ def check_echo_redirect_single_word(state: State, flag: str) -> bool:
     except Exception:
         return False
 
-    return content == state.echo_word and flag == state.echo_word
+    return content == state.echo_word

@@ -57,7 +57,9 @@ def init_argparser():
     submit = sub.add_parser("submit", help="submit a flag")
     submit.add_argument(
         "flag",
-        help="string to submit"
+        nargs="?",
+        default=None,
+        help="string to submit (optional for put-the-flag challenges)"
     )
     sub.add_parser("done", help="cancel the quest and cleanup")
 
@@ -146,13 +148,16 @@ def build_from_symbols(mod, cid):
             f"description_{cid} must be a list of strings"
         )
 
-    return SymbolChallenge(
+    # Create challenge instance
+    ch = SymbolChallenge(
         cid=cid,
         title=title,
         description=description,
         setup=setup,
         evaluate=evaluate,
     )
+    ch.requires_flag = getattr(mod, f"requires_flag_{cid}", True)
+    return ch
 
 def load_challenges():
     data = tomllib.loads(Path(CONFIG_DIR / Path("challenges.toml")).read_text())
@@ -243,7 +248,16 @@ def main():
             return
 
         ch = CHALLENGES[state.challenge_index]
-        if not ch.evaluate(state, args.flag):
+        # Determine flag to pass
+        if getattr(ch, "requires_flag", True):
+            if args.flag is None:
+                print("This challenge requires a flag argument.")
+                return
+            flag_value = args.flag
+        else:
+            flag_value = None
+
+        if not ch.evaluate(state, flag_value):
             print("Wrong flag.")
             return
 
