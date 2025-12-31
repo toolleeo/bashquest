@@ -60,7 +60,7 @@ def init_argparser():
     )
 
     sub.add_parser("list", help="list all challenges")
-    sub.add_parser("current", help="show current challenge")
+    sub.add_parser("challenge", help="show current challenge")
 
     goto = sub.add_parser("goto", help="jump to a specific challenge (resets workspace)")
     goto.add_argument("target", help="challenge number (1-based) or challenge id")
@@ -285,7 +285,7 @@ def main():
             print(f"{marker} {i+1}. {c.title}")
         return
 
-    elif cmd == "current":
+    elif cmd == "challenge":
         if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
         else:
