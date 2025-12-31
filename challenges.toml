@@ -3,6 +3,8 @@ challenges = [
   "largest_file",
   "find_directory",
   "cat_file",
+  "wc_random",
+  "ls_count_files",
   "echo_redirect_single_word",
   "echo_redirect_two_words",
   "echo_redirect_append_two_lines",
