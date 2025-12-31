@@ -116,17 +116,6 @@ def save_state(state: State):
     with workspace_state_file(ws).open("wb") as f:
         f.write(encrypted)
 
-#def load_state(ws: Path) -> State | None:
-#    f = workspace_state_file(ws)
-#    try:
-#        with f.open("rb") as fh:
-#            state, checksum = pickle.load(fh)
-#        if checksum == simple_hash(state):
-#            return state
-#        return None
-#    except Exception:
-#        return None
-
 def load_state(ws: Path) -> State | None:
     f = workspace_state_file(ws)
     try:
