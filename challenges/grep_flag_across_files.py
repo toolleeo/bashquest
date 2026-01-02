@@ -33,7 +33,7 @@ class GrepFlagAcrossFilesChallenge(BaseChallenge):
         "The workspace contains many text files.",
         "Each file contains hundreds of short lines of text.",
         "",
-        "Exactly one line across all files starts with:",
+        "Exactly one line across all files contains:",
         "  flag:WORD",
         "",
         "The flag is the word after 'flag:'."

@@ -31,7 +31,7 @@ class GrepFlagLineChallenge(BaseChallenge):
         "A large text file named 'data.txt' has been created in the workspace.",
         "The file contains thousands of short lines of text.",
         "",
-        "Exactly one line containing exactly:",
+        "Exactly one line contains:",
         "  flag:WORD",
         "",
         "The flag is the word after 'flag:'."
