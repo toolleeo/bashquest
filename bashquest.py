@@ -250,6 +250,26 @@ def exec_challenge_command(state, challenges):
         print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
         print("\n".join(render_description(c.description, state)))
 
+
+def exec_start_command(args, challenges, secret_key):
+    # 1. Resolve and activate workspace
+    path = Path(args.path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    path.mkdir(parents=True, exist_ok=True)
+    workspace = path.resolve()
+    (workspace / ".bashquest").mkdir(exist_ok=True)
+    set_active_workspace(workspace)
+
+    # 2. Load or initialize state
+    state = load_state(workspace, secret_key)
+    if not state:
+        state = State()
+        state.workspace = str(workspace)
+
+    # 3. Start from challenge 0
+    set_challenge(state, challenges, 0, secret_key)
+
 # ===================== main =====================
 
 
@@ -287,21 +307,9 @@ def main():
     secret_key = load_secret_key()
     CHALLENGES = load_challenges()
 
-    # Determine workspace
     workspace: Path | None = None
     if args.command == "start":
-        path = Path(args.path)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        path.mkdir(parents=True, exist_ok=True)
-        workspace = path.resolve()
-        (workspace / ".bashquest").mkdir(exist_ok=True)
-        set_active_workspace(workspace)
-    elif args.command == "use":
-        exec_use_command(args)
-        return
-    elif args.command == "workspace":
-        exec_workspace_command()
+        exec_start_command(args, CHALLENGES, secret_key)
         return
 
     workspace = get_active_workspace()
@@ -318,14 +326,18 @@ def main():
     if args.command == "done":
         exec_done_command()
 
+    elif args.command == "use":
+        exec_use_command(args)
+
+    elif args.command == "workspace":
+        exec_workspace_command()
+        return
+
     elif args.command == "list":
         exec_list_command(state, CHALLENGES)
 
     elif args.command == "challenge":
         exec_challenge_command(state, CHALLENGES)
-
-    elif args.command == "start":
-        set_challenge(state, CHALLENGES, 0, secret_key)
 
     elif args.command == "goto":
         idx = resolve_challenge_index(args.target, CHALLENGES)
