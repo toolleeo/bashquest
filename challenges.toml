@@ -21,4 +21,6 @@ challenges = [
   "rm_file_in_deepest_directory",
   "rmdir_non_empty_deepest_directory",
   "rmdir_three_nested_directories",
+  "grep_flag_line",
+  "grep_flag_across_files",
 ]
