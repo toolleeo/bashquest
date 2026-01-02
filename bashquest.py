@@ -314,7 +314,6 @@ def main():
     secret_key = load_secret_key()
     CHALLENGES = load_challenges()
 
-    workspace: Path | None = None
     if args.command == "start":
         exec_start_command(args, CHALLENGES, secret_key)
         return
