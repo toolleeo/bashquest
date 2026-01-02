@@ -26,7 +26,7 @@ def random_text(min_len=2, max_len=15) -> str:
 
 class GrepFlagAcrossFilesChallenge(BaseChallenge):
     id = "grep_flag_across_files"
-    title = "Find a line across many files using grep"
+    title = "Find a line across many files"
     requires_flag = True
 
     description = [
