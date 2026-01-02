@@ -325,11 +325,6 @@ def main():
         exec_challenge_command(state, CHALLENGES)
 
     elif args.command == "start":
-        #state.challenge_index = 0
-        #ws = workspace.resolve()
-        #reset_workspace(ws)
-        #state.workspace = str(ws)
-
         set_challenge(state, CHALLENGES, 0, secret_key)
 
     elif args.command == "goto":
