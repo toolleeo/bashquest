@@ -291,12 +291,6 @@ def set_challenge(state: State, challenges, idx: int, secret_key):
         print("Invalid challenge.")
         return
 
-    #elif args.command == "use":
-    #    exec_use_command(args)
-    #    return
-    #elif args.command == "workspace":
-    #    exec_workspace_command()
-    #    return
     state.challenge_index = idx
 
     ws = Path(state.workspace).resolve()
