@@ -331,28 +331,20 @@ def main():
 
     if args.command == "done":
         exec_done_command()
-
     elif args.command == "use":
         exec_use_command(args)
-
     elif args.command == "workspace":
         exec_workspace_command()
-        return
-
     elif args.command == "list":
         exec_list_command(state, CHALLENGES)
-
     elif args.command == "challenge":
         exec_challenge_command(state, CHALLENGES)
-
     elif args.command == "goto":
         idx = resolve_challenge_index(args.target, CHALLENGES)
         if idx is None:
             print("Invalid challenge.")
             return
-
         set_challenge(state, CHALLENGES, idx, secret_key)
-
     elif args.command == "submit":
         if state.challenge_index >= len(CHALLENGES):
             print("All challenges completed.")
