@@ -252,6 +252,32 @@ def exec_challenge_command(state, challenges):
 
 # ===================== main =====================
 
+
+def set_challenge(state: State, challenges, idx: int, secret_key):
+    """
+    Set the current challenge to idx:
+    - reset workspace
+    - run setup
+    - persist state
+    - print challenge header and description
+    """
+    if not (0 <= idx < len(challenges)):
+        print("Invalid challenge.")
+        return
+
+    state.challenge_index = idx
+
+    ws = Path(state.workspace).resolve()
+    reset_workspace(ws)
+
+    ch = challenges[idx]
+    state = ch.setup(state)
+    save_state(state, secret_key)
+
+    print(f"Challenge {idx + 1}: {ch.title}\n")
+    print("\n".join(render_description(ch.description, state)))
+
+
 def main():
     random.seed(time.time())
 
@@ -299,17 +325,12 @@ def main():
         exec_challenge_command(state, CHALLENGES)
 
     elif args.command == "start":
-        state.challenge_index = 0
-        ws = workspace.resolve()
-        reset_workspace(ws)
-        state.workspace = str(ws)
+        #state.challenge_index = 0
+        #ws = workspace.resolve()
+        #reset_workspace(ws)
+        #state.workspace = str(ws)
 
-        ch = CHALLENGES[0]
-        state = ch.setup(state)
-        save_state(state, secret_key)
-
-        print(f"Challenge 1: {ch.title}\n")
-        print("\n".join(render_description(ch.description, state)))
+        set_challenge(state, CHALLENGES, 0, secret_key)
 
     elif args.command == "goto":
         idx = resolve_challenge_index(args.target, CHALLENGES)
@@ -317,45 +338,38 @@ def main():
             print("Invalid challenge.")
             return
 
-        state.challenge_index = idx
-        ws = workspace.resolve()
-        reset_workspace(ws)
-        state.workspace = str(ws)
-
-        ch = CHALLENGES[idx]
-        state = ch.setup(state)
-        save_state(state, secret_key)
-
-        print(f"Jumped to challenge {idx + 1}: {ch.title}\n")
-        print("\n".join(render_description(ch.description, state)))
+        set_challenge(state, CHALLENGES, idx, secret_key)
 
     elif args.command == "submit":
-        ch = CHALLENGES[state.challenge_index]
-        flag_value = args.flag
-        if getattr(ch, "requires_flag", True) and flag_value is None:
-            print("This challenge requires a flag argument.")
+        if state.challenge_index >= len(CHALLENGES):
+            print("All challenges completed.")
             return
+
+        ch = CHALLENGES[state.challenge_index]
+
+        # Determine flag
+        if getattr(ch, "requires_flag", True):
+            if args.flag is None:
+                print("This challenge requires a flag argument.")
+                return
+            flag_value = args.flag
+        else:
+            flag_value = None
 
         if not ch.evaluate(state, flag_value):
             print("Wrong flag.")
             return
 
         print("Correct!\n")
-        state.passed_challenges.add(ch.id)  # mark challenge as passed
-        state.challenge_index += 1
+
+        # Mark challenge as passed
+        state.passed_challenges.add(ch.id)
         save_state(state, secret_key)
 
-        if state.challenge_index < len(CHALLENGES):
-            next_ch = CHALLENGES[state.challenge_index]
-            ws = workspace.resolve()
-            reset_workspace(ws)
-            state.workspace = str(ws)
+        next_idx = state.challenge_index + 1
 
-            state = next_ch.setup(state)
-            save_state(state, secret_key)
-
-            print(f"Challenge {state.challenge_index + 1}: {next_ch.title}\n")
-            print("\n".join(render_description(next_ch.description, state)))
+        if next_idx < len(CHALLENGES):
+            set_challenge(state, CHALLENGES, next_idx, secret_key)
         else:
             print("You completed all challenges!")
 
