@@ -10,7 +10,7 @@ challenges = [
   "ls_count_files",
   "echo_redirect_single_word",
   "echo_redirect_two_words",
-  "echo_redirect_append_two_lines",
+  "echo_redirect_append_to_file",
   "deepest_directory",
   "tab_completion",
   "cd_maze",

@@ -7,11 +7,11 @@ ECHO_FLAGS = ["apple", "banana", "orange", "grape", "lemon"]
 
 # ---------- REQUIRED PLUGIN SYMBOLS ----------
 
-requires_flag_echo_redirect_append_two_lines = False
+requires_flag_echo_redirect_append_to_file = False
 
-title_echo_redirect_append_two_lines = "Append to a file"
+title_echo_redirect_append_to_file = "Append to a file"
 
-description_echo_redirect_append_two_lines = [
+description_echo_redirect_append_to_file = [
     "The file 'flag.txt' has been created in the workspace.",
     "It contains exactly one line:",
     "  {echo_word_1}",
@@ -21,7 +21,7 @@ description_echo_redirect_append_two_lines = [
     "The flag is the exact content of the file."
 ]
 
-def setup_echo_redirect_append_two_lines(state: State) -> State:
+def setup_echo_redirect_append_to_file(state: State) -> State:
     ws = Path(state.workspace).resolve()
 
     # Choose two distinct words
@@ -35,16 +35,16 @@ def setup_echo_redirect_append_two_lines(state: State) -> State:
     target.write_text(w1 + "\n")
 
     # Update description to display the words
-    for i, line in enumerate(description_echo_redirect_append_two_lines):
+    for i, line in enumerate(description_echo_redirect_append_to_file):
         if "{echo_word_1}" in line:
-            description_echo_redirect_append_two_lines[i] = line.replace("{echo_word_1}", f"'{w1}'")
+            description_echo_redirect_append_to_file[i] = line.replace("{echo_word_1}", f"'{w1}'")
         if "{echo_word_2}" in line:
-            description_echo_redirect_append_two_lines[i] = line.replace("{echo_word_2}", f"'{w2}'")
+            description_echo_redirect_append_to_file[i] = line.replace("{echo_word_2}", f"'{w2}'")
 
     return state
 
 
-def check_echo_redirect_append_two_lines(state: State, flag: str | None) -> bool:
+def check_echo_redirect_append_to_file(state: State, flag: str | None) -> bool:
     ws = Path(state.workspace)
     target = ws / ECHO_FILENAME
 
