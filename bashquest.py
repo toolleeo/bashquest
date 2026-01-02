@@ -21,6 +21,8 @@ import base64
 
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
 ACTIVE_WORKSPACE_FILE = CONFIG_DIR / "active_workspace"
+USER_CONFIG_FILE = CONFIG_DIR / "env"
+SYSTEM_CONFIG_FILE = "/etc/bashquest/env"
 
 DEFAULT_WORKSPACE_NAME = "workspace"
 
@@ -43,9 +45,6 @@ def load_secret_key() -> bytes:
 
     print("Fatal error: SECRET_KEY not found in env file.")
     sys.exit(1)
-
-
-SECRET_KEY = load_secret_key()
 
 # ===================== ARGPARSE =====================
 
@@ -88,39 +87,30 @@ def init_argparser():
 
 # ===================== STATE =====================
 
-def get_fernet():
+def get_fernet(secret_key: str):
     # SECRET_KEY must be 32 bytes for Fernet
-    key = SECRET_KEY.ljust(32, b'\0')[:32]
+    key = secret_key.ljust(32, b'\0')[:32]
     return Fernet(base64.urlsafe_b64encode(key))
-
-
-def simple_hash(state: State) -> bytes:
-    h = hashlib.sha256()
-    h.update(SECRET_KEY)
-    h.update(state.challenge_index.to_bytes(4, "little"))
-    h.update(state.flag_hash)
-    h.update(state.workspace.encode())
-    return h.digest()
 
 
 def workspace_state_file(ws: Path) -> Path:
     return ws / ".bashquest" / "state.bin"
 
 
-def save_state(state: State):
+def save_state(state: State, secret_key: str):
     ws = Path(state.workspace)
     ws_bash = ws / ".bashquest"
     ws_bash.mkdir(parents=True, exist_ok=True)
-    fernet = get_fernet()
+    fernet = get_fernet(secret_key)
     raw = pickle.dumps(state)
     encrypted = fernet.encrypt(raw)
     with workspace_state_file(ws).open("wb") as f:
         f.write(encrypted)
 
-def load_state(ws: Path) -> State | None:
+def load_state(ws: Path, secret_key: str) -> State | None:
     f = workspace_state_file(ws)
     try:
-        fernet = get_fernet()
+        fernet = get_fernet(secret_key)
         raw = f.read_bytes()
         state = pickle.loads(fernet.decrypt(raw))
         return state
@@ -140,15 +130,6 @@ def get_active_workspace() -> Path | None:
     ws = Path(ACTIVE_WORKSPACE_FILE.read_text().strip())
     if ws.exists() and ws.is_dir():
         return ws
-    return None
-
-
-def detect_workspace_from_cwd() -> Path | None:
-    p = Path.cwd()
-    while p != p.parent:
-        if (p / ".bashquest").exists():
-            return p
-        p = p.parent
     return None
 
 
@@ -225,9 +206,51 @@ def load_challenges():
 
     return challenges
 
+# ===================== commands =====================
 
-# ===================== MAIN =====================
+def exec_use_command(args):
+    path = Path(args.path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    ws = path.resolve()
+    if not (ws / ".bashquest").exists():
+        print(f"No workspace found at {ws}")
+        return
+    set_active_workspace(ws)
+    print(f"Active workspace set to {ws}")
 
+def exec_workspace_command():
+    ws = get_active_workspace()
+    if ws is None:
+        print("No active workspace. Use 'start' or 'use' to select a workspace.")
+    else:
+        print(ws)
+
+def exec_done_command():
+    ws = get_active_workspace()
+    make_writable_recursive(ws)
+    shutil.rmtree(ws, ignore_errors=True)
+    print(f"Workspace {ws} removed.")
+
+def exec_list_command(state, challenges):
+    total = len(challenges)
+    width = len(str(total))  # number of digits of the largest index
+
+    for i, c in enumerate(challenges):
+        marker = ">" if i == state.challenge_index else " "
+        status = "[*]" if c.id in state.passed_challenges else "[ ]"
+        idx = f"{i + 1:>{width}}"
+        print(f"{marker} {idx}. {status} {c.title}")
+
+def exec_challenge_command(state, challenges):
+    if state.challenge_index >= len(challenges):
+        print("All challenges completed.")
+    else:
+        c = challenges[state.challenge_index]
+        print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
+        print("\n".join(render_description(c.description, state)))
+
+# ===================== main =====================
 
 def main():
     random.seed(time.time())
@@ -235,6 +258,7 @@ def main():
     parser = init_argparser()
     args = parser.parse_args()
 
+    secret_key = load_secret_key()
     CHALLENGES = load_challenges()
 
     # Determine workspace
@@ -248,64 +272,33 @@ def main():
         (workspace / ".bashquest").mkdir(exist_ok=True)
         set_active_workspace(workspace)
     elif args.command == "use":
-        path = Path(args.path)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        ws = detect_workspace_from_cwd() or path.resolve()
-        if not (ws / ".bashquest").exists():
-            print(f"No workspace found at {ws}")
-            return
-        set_active_workspace(ws)
-        print(f"Active workspace set to {ws}")
+        exec_use_command(args)
         return
     elif args.command == "workspace":
-        if state.challenge_index >= len(CHALLENGES):
-            print("All challenges completed.")
-        else:
-            c = CHALLENGES[state.challenge_index]
-            status = "✓ Passed" if c.id in state.passed_challenges else "Not passed"
-            print(f"Challenge {state.challenge_index + 1}: {c.title} ({status})\n")
-            print("\n".join(render_description(c.description, state)))
-    else:
-        workspace = detect_workspace_from_cwd() or get_active_workspace()
-        if workspace is None:
-            print("No active workspace. Use 'start' or 'use' to select a workspace.")
-            return
+        exec_workspace_command()
+        return
 
-    state = load_state(workspace)
+    workspace = get_active_workspace()
+    if workspace is None:
+        print("No active workspace. Use 'start' or 'use' to select a workspace.")
+        return
+
+    state = load_state(workspace, secret_key)
     if not state:
         state = State()
         state.workspace = str(workspace)
-        save_state(state)
+        save_state(state, secret_key)
 
-    cmd = args.command
+    if args.command == "done":
+        exec_done_command()
 
-    if cmd == "done":
-        make_writable_recursive(workspace)
-        shutil.rmtree(workspace, ignore_errors=True)
-        print(f"Workspace {workspace} removed.")
-        return
+    elif args.command == "list":
+        exec_list_command(state, CHALLENGES)
 
-    elif cmd == "list":
-        total = len(CHALLENGES)
-        width = len(str(total))  # number of digits of the largest index
+    elif args.command == "challenge":
+        exec_challenge_command(state, CHALLENGES)
 
-        for i, c in enumerate(CHALLENGES):
-            marker = ">" if i == state.challenge_index else " "
-            status = "[*]" if c.id in state.passed_challenges else "[ ]"
-            idx = f"{i + 1:>{width}}"
-            print(f"{marker} {idx}. {status} {c.title}")
-
-    elif cmd == "challenge":
-        if state.challenge_index >= len(CHALLENGES):
-            print("All challenges completed.")
-        else:
-            c = CHALLENGES[state.challenge_index]
-            print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
-            print("\n".join(render_description(c.description, state)))
-        return
-
-    elif cmd == "start":
+    elif args.command == "start":
         state.challenge_index = 0
         ws = workspace.resolve()
         reset_workspace(ws)
@@ -313,13 +306,12 @@ def main():
 
         ch = CHALLENGES[0]
         state = ch.setup(state)
-        save_state(state)
+        save_state(state, secret_key)
 
         print(f"Challenge 1: {ch.title}\n")
         print("\n".join(render_description(ch.description, state)))
-        return
 
-    elif cmd == "goto":
+    elif args.command == "goto":
         idx = resolve_challenge_index(args.target, CHALLENGES)
         if idx is None:
             print("Invalid challenge.")
@@ -332,13 +324,12 @@ def main():
 
         ch = CHALLENGES[idx]
         state = ch.setup(state)
-        save_state(state)
+        save_state(state, secret_key)
 
         print(f"Jumped to challenge {idx + 1}: {ch.title}\n")
         print("\n".join(render_description(ch.description, state)))
-        return
 
-    elif cmd == "submit":
+    elif args.command == "submit":
         ch = CHALLENGES[state.challenge_index]
         flag_value = args.flag
         if getattr(ch, "requires_flag", True) and flag_value is None:
@@ -352,7 +343,7 @@ def main():
         print("Correct!\n")
         state.passed_challenges.add(ch.id)  # mark challenge as passed
         state.challenge_index += 1
-        save_state(state)
+        save_state(state, secret_key)
 
         if state.challenge_index < len(CHALLENGES):
             next_ch = CHALLENGES[state.challenge_index]
@@ -361,7 +352,7 @@ def main():
             state.workspace = str(ws)
 
             state = next_ch.setup(state)
-            save_state(state)
+            save_state(state, secret_key)
 
             print(f"Challenge {state.challenge_index + 1}: {next_ch.title}\n")
             print("\n".join(render_description(next_ch.description, state)))
