@@ -1,5 +1,6 @@
 challenges = [
   "list_dir",
+  "ls_wildcards_star",
   "relative_paths",
   "absolute_paths",
   "largest_file",

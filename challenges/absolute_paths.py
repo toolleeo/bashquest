@@ -11,7 +11,7 @@ GENERIC_FILES = ["notes.txt", "todo.md", "image.jpg", "song.mp3", "data.csv"]
 
 class AbsolutePathsChallenge(BaseChallenge):
     id = "absolute_paths"
-    title = "Find a file using absolute paths"
+    title = "Find absolute path of a file"
     description = [
         "A directory tree has been created in the workspace.",
         "Inside this tree, a *single unique file* exists.",
