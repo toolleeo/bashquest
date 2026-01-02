@@ -1,5 +1,7 @@
 challenges = [
   "list_dir",
+  "relative_paths",
+  "absolute_paths",
   "largest_file",
   "find_directory",
   "cat_file",
