@@ -53,6 +53,12 @@ def init_argparser():
     parser = argparse.ArgumentParser(description="Shell quest (CTF-style)")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="random seed for deterministic execution"
+    )
+
     start = sub.add_parser("start", help="start a new workspace")
     start.add_argument(
         "path",
@@ -299,10 +305,11 @@ def set_challenge(state: State, challenges, idx: int, secret_key):
 
 
 def main():
-    random.seed(time.time())
-
     parser = init_argparser()
     args = parser.parse_args()
+
+    seed = args.seed if args.seed is not None else int(time.time())
+    random.seed(seed)
 
     secret_key = load_secret_key()
     CHALLENGES = load_challenges()
