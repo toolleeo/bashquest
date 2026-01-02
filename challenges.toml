@@ -22,6 +22,7 @@ challenges = [
   "rmdir_non_empty_deepest_directory",
   "rmdir_three_nested_directories",
   "cp_copy_file_to_dir",
+  "copy_file_in_same_directory",
   "grep_flag_line",
   "grep_flag_across_files",
 ]
