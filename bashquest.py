@@ -195,6 +195,18 @@ def build_from_symbols(mod, cid):
 
 def load_challenges():
     config_file = CONFIG_DIR / "challenges.toml"
+    if not config_file.exists():
+        script_dir = Path(__file__).resolve().parent
+        fallback = script_dir / "challenges.toml"
+        if fallback.exists():
+            config_file = fallback
+        else:
+            print("Fatal error: challenges.toml not found.")
+            print(f"Checked:")
+            print(f"  - {CONFIG_DIR / 'challenges.toml'}")
+            print(f"  - {fallback}")
+            sys.exit(1)
+
     data = tomllib.loads(config_file.read_text())
     challenge_ids = data["challenges"]
 
