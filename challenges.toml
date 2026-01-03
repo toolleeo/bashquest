@@ -23,6 +23,9 @@ challenges = [
   "rmdir_three_nested_directories",
   "copy_file_to_dir",
   "copy_file_in_same_directory",
+  "move_file_into_directory",
+  "mv_rename_file",
+  "mv_rename_directory",
   "grep_flag_line",
   "grep_flag_across_files",
 ]
