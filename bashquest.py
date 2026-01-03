@@ -24,6 +24,7 @@ ACTIVE_WORKSPACE_FILE = CONFIG_DIR / "active_workspace"
 USER_CONFIG_FILE = CONFIG_DIR / "env"
 SYSTEM_CONFIG_FILE = Path("/etc/bashquest/env")
 
+CHALLENGES_TOML = "challenges.toml"
 DEFAULT_WORKSPACE_NAME = "workspace"
 
 
@@ -194,16 +195,16 @@ def build_from_symbols(mod, cid):
 
 
 def load_challenges():
-    config_file = CONFIG_DIR / "challenges.toml"
+    config_file = CONFIG_DIR / CHALLENGES_TOML
     if not config_file.exists():
         script_dir = Path(__file__).resolve().parent
-        fallback = script_dir / "challenges.toml"
+        fallback = script_dir / CHALLENGES_TOML
         if fallback.exists():
             config_file = fallback
         else:
-            print("Fatal error: challenges.toml not found.")
+            print(f"Fatal error: {CHALLENGES_TOML} not found.")
             print(f"Checked:")
-            print(f"  - {CONFIG_DIR / 'challenges.toml'}")
+            print(f"  - {CONFIG_DIR / CHALLENGES_TOML}")
             print(f"  - {fallback}")
             sys.exit(1)
 
