@@ -13,7 +13,7 @@ class WordCountChallenge(BaseChallenge):
     title = "Count words in a file"
     description = [
         "A file has been created in the workspace with a random number of words.",
-        "Words are sequences of characters separated by spaces."
+        "Words are sequences of characters separated by spaces.",
         "Use the appropriate command to count the words in the file.",
         "The flag is the number of words in the file."
     ]
