@@ -27,8 +27,7 @@ git clone https://github.com/toolleeo/bashquest.git
 cd bashquest
 ```
 
-Create the configuration directory `.config/bashquest`.
-
+OPTIONAL: Create the configuration directory `.config/bashquest`.
 Copy `challenges.toml` to the configuration directory.
 It contains the list of challenges that are available to the user.
 
