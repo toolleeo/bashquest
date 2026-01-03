@@ -2,6 +2,7 @@ challenges = [
   "list_dir",
   "ls_wildcards_star",
   "relative_paths",
+  "pwd_absolute_path",
   "absolute_paths",
   "largest_file",
   "find_directory",
