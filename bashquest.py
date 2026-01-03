@@ -22,17 +22,23 @@ import base64
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
 ACTIVE_WORKSPACE_FILE = CONFIG_DIR / "active_workspace"
 USER_CONFIG_FILE = CONFIG_DIR / "env"
-SYSTEM_CONFIG_FILE = "/etc/bashquest/env"
+SYSTEM_CONFIG_FILE = Path("/etc/bashquest/env")
 
 DEFAULT_WORKSPACE_NAME = "workspace"
 
 
 def load_secret_key() -> bytes:
-    env_file = CONFIG_DIR / "env"
+    env_file = SYSTEM_CONFIG_FILE
+    # check for system configuration
     if not env_file.exists():
-        print("Fatal error: secret env file not found.")
-        sys.exit(1)
+        env_file = USER_CONFIG_FILE
+    # create local configuration if it does not exist
+    if not env_file.exists():
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        with env_file.open("w") as f:
+            f.write("SECRET_KEY=bashquest_internal_secret_please_change_me\n")
 
+    # read secret key
     with env_file.open() as f:
         for line in f:
             line = line.strip()
