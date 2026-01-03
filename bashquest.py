@@ -230,6 +230,14 @@ def load_challenges():
 
     return challenges
 
+
+def display_challenge(state, c):
+    print(80*"-")
+    print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
+    print("\n".join(render_description(c.description, state)))
+    print(80*"-")
+
+
 # ===================== commands =====================
 
 def exec_use_command(args):
@@ -271,8 +279,7 @@ def exec_challenge_command(state, challenges):
         print("All challenges completed.")
     else:
         c = challenges[state.challenge_index]
-        print(f"Challenge {state.challenge_index + 1}: {c.title}\n")
-        print("\n".join(render_description(c.description, state)))
+        display_challenge(state, c)
 
 
 def exec_start_command(args, challenges, secret_key):
@@ -318,8 +325,7 @@ def set_challenge(state: State, challenges, idx: int, secret_key):
     state = ch.setup(state)
     save_state(state, secret_key)
 
-    print(f"Challenge {idx + 1}: {ch.title}\n")
-    print("\n".join(render_description(ch.description, state)))
+    display_challenge(state, ch)
 
 
 def main():
