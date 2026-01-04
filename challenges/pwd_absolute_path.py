@@ -22,6 +22,11 @@ class PWDAbsolutePathChallenge(BaseChallenge):
         "Then print its absolute path.",
         "",
         "The flag is the absolute path of the current directory.",
+        "",
+        "NOTE:",
+        "Move out of the tree in the workspace before submitting",
+        "otherwise, if you pass the challenge, the tree will be deleted",
+        "and you will end up in a non-existent directory."
     ]
 
     def setup(self, state: State) -> State:
