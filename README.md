@@ -61,7 +61,7 @@ The flag is not necessary in case of "put-the-flag" challenges, i.e., when the u
 List the available challenges:
 
 ```
-python bashquest.py start
+python bashquest.py list
 ```
 
 ### Set the current challenge
