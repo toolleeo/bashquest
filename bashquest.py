@@ -63,7 +63,7 @@ def init_argparser():
     parser.add_argument(
         "--seed",
         type=int,
-        help="random seed for deterministic execution"
+        help="random seed for deterministic execution (integer number)"
     )
 
     start = sub.add_parser("start", help="start a new workspace")
@@ -89,9 +89,9 @@ def init_argparser():
     )
 
     use = sub.add_parser("use", help="switch to another workspace")
-    use.add_argument("path", help="path to workspace to use (absolute or relative)")
+    use.add_argument("path", help="path to the workspace to use (absolute or relative)")
 
-    sub.add_parser("workspace", help="show absolute path of current workspace")
+    sub.add_parser("workspace", help="show the absolute path of current workspace")
 
     sub.add_parser("done", help="cancel the quest and cleanup")
 
