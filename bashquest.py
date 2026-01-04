@@ -9,8 +9,9 @@ import pickle
 import hashlib
 from pathlib import Path
 import importlib
+import json
+# import tomllib
 import sys
-import tomllib
 from challenges.base import BaseChallenge
 from utils import reset_workspace, make_writable_recursive
 from state import State
@@ -24,7 +25,8 @@ ACTIVE_WORKSPACE_FILE = CONFIG_DIR / "active_workspace"
 USER_CONFIG_FILE = CONFIG_DIR / "env"
 SYSTEM_CONFIG_FILE = Path("/etc/bashquest/env")
 
-CHALLENGES_TOML = "challenges.toml"
+# CHALLENGES_LIST = "challenges.toml"
+CHALLENGES_LIST = "challenges.json"
 DEFAULT_WORKSPACE_NAME = "workspace"
 
 
@@ -195,21 +197,23 @@ def build_from_symbols(mod, cid):
 
 
 def load_challenges():
-    config_file = CONFIG_DIR / CHALLENGES_TOML
+    config_file = CONFIG_DIR / CHALLENGES_LIST
     if not config_file.exists():
         script_dir = Path(__file__).resolve().parent
-        fallback = script_dir / CHALLENGES_TOML
+        fallback = script_dir / CHALLENGES_LIST
         if fallback.exists():
             config_file = fallback
         else:
-            print(f"Fatal error: {CHALLENGES_TOML} not found.")
+            print(f"Fatal error: {CHALLENGES_LIST} not found.")
             print(f"Checked:")
-            print(f"  - {CONFIG_DIR / CHALLENGES_TOML}")
+            print(f"  - {CONFIG_DIR / CHALLENGES_LIST}")
             print(f"  - {fallback}")
             sys.exit(1)
 
-    data = tomllib.loads(config_file.read_text())
-    challenge_ids = data["challenges"]
+    # data = tomllib.loads(config_file.read_text())
+    # challenge_ids = data["challenges"]
+    data = json.loads(config_file.read_text())
+    challenge_ids = data
 
     challenges = []
 
