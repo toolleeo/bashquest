@@ -17,12 +17,14 @@ from utils import reset_workspace, make_writable_recursive
 from state import State
 from cryptography.fernet import Fernet
 import base64
+import logging
 
 # ===================== CONFIG =====================
 
 CONFIG_DIR = Path.home() / ".config" / "bashquest"
 ACTIVE_WORKSPACE_FILE = CONFIG_DIR / "active_workspace"
 USER_CONFIG_FILE = CONFIG_DIR / "env"
+LOG_FILE = CONFIG_DIR / "bashquest.log"
 SYSTEM_CONFIG_FILE = Path("/etc/bashquest/env")
 
 # CHALLENGES_LIST = "challenges.toml"
@@ -99,6 +101,34 @@ def init_argparser():
 
     return parser
 
+# ===================== logger =====================
+
+def setup_logger(name, log_file,
+                 formatter=logging.Formatter('%(asctime)s %(levelname)s %(message)s'),
+                 level=logging.INFO):
+    """
+    Function to setup a generic loggers.
+
+    :param name: name of the logger
+    :type name: str
+    :param log_file: file of the log
+    :type log_file: str
+    :param formatter: formatter to be used by the logger
+    :type formatter: logging.Formatter
+    :param level: level to display
+    :type level: int
+    :return: the logger
+    :rtype: logging.Logger
+    """
+    handler = logging.FileHandler(log_file)
+    handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+    return logger
+
+
+mylogger = setup_logger("mylogger", LOG_FILE)
 
 # ===================== STATE =====================
 
@@ -331,6 +361,7 @@ def set_challenge(state: State, challenges, idx: int, secret_key):
     save_state(state, secret_key)
 
     display_challenge(state, ch)
+    mylogger.info(f"Challenge set to {idx + 1}")
 
 
 def main():
@@ -339,6 +370,7 @@ def main():
 
     seed = args.seed if args.seed is not None else int(time.time())
     random.seed(seed)
+    mylogger.info(f"Seed: {seed}")
 
     secret_key = load_secret_key()
     CHALLENGES = load_challenges()
@@ -391,6 +423,7 @@ def main():
             flag_value = None
 
         if not ch.evaluate(state, flag_value):
+            mylogger.info(f"Challenge {state.challenge_index + 1}: wrong flag")
             print("Wrong flag.")
             return
 
@@ -399,6 +432,8 @@ def main():
         # Mark challenge as passed
         state.passed_challenges.add(ch.id)
         save_state(state, secret_key)
+
+        mylogger.info(f"Challenge {state.challenge_index + 1}: passed")
 
         next_idx = state.challenge_index + 1
 
