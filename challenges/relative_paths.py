@@ -13,7 +13,7 @@ class RelativePathsChallenge(BaseChallenge):
     title = "Navigate using relative paths"
     description = [
         "A directory tree has been created in the workspace.",
-        "You are currently located in the directory:",
+        "You are currently located in the directory (you can cd there and try!):",
         "  {start_dir}",
         "",
         "What is the *relative path* from this directory to:",

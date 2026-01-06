@@ -19,7 +19,7 @@ class LsCountryChallenge(BaseChallenge):
     title = "Find file name"
     description = [
         "A file has been created in the workspace.",
-        "The name of the file (without extension) is the flag."
+        "The name of the file, without extension, is the flag."
     ]
     requires_flag = True
 
