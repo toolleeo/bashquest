@@ -426,10 +426,14 @@ def main():
 
         if not ch.evaluate(state, flag_value):
             mylogger.info(f"Challenge {state.challenge_index + 1}: wrong flag")
-            print("Wrong flag.")
+            print("")
+            print("..:: The flag is WRONG ::..")
+            print("")
             return
 
-        print("Correct!\n")
+        print("")
+        print("..:: Congratulations, the flag is CORRECT ::..")
+        print("")
 
         # Mark challenge as passed
         state.passed_challenges.add(ch.id)
