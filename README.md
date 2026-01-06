@@ -20,7 +20,7 @@ Anti-cheating measures are not meant to be robust against skilled, motivated use
 
 ## Installation and usage
 
-The program requires Python 3.9 or more recent.
+The program requires Python 3.11 or more recent.
 
 The program was tested on Debian/Ubuntu Linux and MacOS.
 
