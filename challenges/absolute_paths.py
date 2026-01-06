@@ -53,4 +53,9 @@ class AbsolutePathsChallenge(BaseChallenge):
         return state
 
     def evaluate(self, state: State, flag: str) -> bool:
-        return flag.strip() == state.absolute_path_flag
+        try:
+            user_path = str(Path(flag.strip()).resolve())
+        except Exception:
+            return False
+
+        return user_path == state.absolute_path_flag
