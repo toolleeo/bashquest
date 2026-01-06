@@ -31,6 +31,8 @@ SYSTEM_CONFIG_FILE = Path("/etc/bashquest/env")
 CHALLENGES_LIST = "challenges.json"
 DEFAULT_WORKSPACE_NAME = "workspace"
 
+if not CONFIG_DIR.exists():
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_secret_key() -> bytes:
     env_file = SYSTEM_CONFIG_FILE
