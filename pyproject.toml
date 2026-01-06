@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bashquest"
+version = "1.0.0"
+description = "A terminal-based bash learning game"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Tullio Facchinetti" }
+]
+
+dependencies = [
+    "cryptography",
+]
+
+[project.scripts]
+bashquest = "bashquest:main"
+
+[tool.setuptools]
+py-modules = [
+    "bashquest",
+    "state",
+    "utils",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["challenges"]
