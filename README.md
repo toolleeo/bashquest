@@ -1,5 +1,7 @@
 # bashquest
 
+![](docs/bashquest_demo.gif)
+
 bashquest is an interactive shell training environment in the spirit of "capture-the-flag" competitions.
 It guides the user through a series of challenges designed to teach and test basic and intermediate shell skills.
 
