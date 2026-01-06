@@ -46,5 +46,10 @@ class PWDAbsolutePathChallenge(BaseChallenge):
         return state
 
     def evaluate(self, state: State, flag: str) -> bool:
-        return hash_flag(flag.strip()) == state.flag_hash
+        try:
+            user_path = str(Path(flag.strip()).resolve())
+        except Exception:
+            return False
+
+        return hash_flag(user_path) == state.flag_hash
 
