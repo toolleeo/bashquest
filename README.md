@@ -2,10 +2,10 @@
 
 ![](docs/bashquest_demo.gif)
 
-bashquest is an interactive shell training environment in the spirit of "capture-the-flag" competitions.
+`bashquest` is an interactive shell training environment in the spirit of "capture-the-flag" competitions.
 It guides the user through a series of challenges designed to teach and test basic and intermediate shell skills.
 
-For each challenge, bashquest populates the workspace with some items (files and directories), and prints the request for the challenge.
+For each challenge, `bashquest` populates the workspace with some items (files and directories), and prints the request for the challenge.
 The user is required to perform the necessary operation to accomplish with the request.
 
 ## Features
@@ -35,7 +35,7 @@ cd bashquest
 
 OPTIONAL: Create the configuration directory `.config/bashquest`.
 Copy `challenges.json` to the configuration directory.
-It contains the list of challenges that are available to the user.
+The file specifies the list and the order of the challenges that are proposed to the user.
 
 ## Main commands
 
@@ -55,7 +55,7 @@ The name of the workspace can be set by the user; see the options of the command
 Submit the flag of the current challenge:
 
 ```
-python bashquest.py submit <flag>
+python bashquest.py submit [flag]
 ```
 
 NOTE: the flag to submit is a string contained somehwere in the workspace populated by the challenge, NOT the command that is required to retrieve the flag itself.
@@ -79,4 +79,39 @@ python bashquest.py goto <number>
 ```
 
 Everytime a challenge is set using `goto`, the setup of the challenge itself (directories, files, etc.) can be different - typically randomly generated.
+
 The `--seed` option allows to set a seed for the random number generator, so that the same setup can be reused.
+
+The text of the current challenge can be printed anytime with:
+
+```
+python bashquest.py challenge
+```
+
+### Working with (different) workspaces
+
+A workspace is a directory created with the `start` command, which contains the hidden directory `.bashquest`, which in turns contains the state of the current quest.
+
+Start a new quest in the desired workspace:
+
+```
+python bashquest.py start <name/path of the workspace>
+```
+
+Change the active workspace, specifying its path:
+
+```
+python bashquest.py use <path>
+```
+
+Return the absolute path of the current workspace:
+
+```
+python bashquest.py workspace
+```
+
+To conclude the active quest (this removes the quest directory):
+
+```
+python bashquest.py done
+```
