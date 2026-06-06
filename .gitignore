@@ -76,3 +76,6 @@ dmypy.json
 # Windows
 Thumbs.db
 bashquest
+
+# specific
+workspace/

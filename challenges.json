@@ -17,6 +17,7 @@
   "tab_completion",
   "cd_maze",
   "cd_permissions",
+  "paste_for_path",
   "mkdir_single_directory",
   "mkdir_nested_directories",
   "rmdir_deepest_directory",
@@ -36,5 +37,6 @@
   "nth_word",
   "tail_kth_line",
   "cut_nth_word",
-  "tr_remove_digits"
+  "tr_remove_digits",
+  "sort_size_flag"
 ]
